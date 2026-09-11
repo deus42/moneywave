@@ -22,6 +22,7 @@ Unknown balances, unmatched movements and missing rates remain unknown. Report c
 Use Node 24 and the pinned pnpm version. `pnpm install` installs processing dependencies; `pnpm verify` runs lint, typecheck, synthetic tests and security checks. The website uses native Node HTTP and local static assets; no framework build or external service is needed.
 
 - `pnpm start`: open the local workspace at `http://127.0.0.1:43821/`. Requires the existing Keychain-backed database and an initialized report.
+- Stable mobile access on ExMachina: `https://exmachina.tail3a0b66.ts.net:9443/`, with Tailscale connected as the owner. See [private hosting](#private-hosting-on-exmachina).
 - `pnpm workspace:seed <ignored-local-report.json>`: validate and initialize the report projection; `--refresh` imports a later verified report while retaining compatible user edits. Source checks and a verified encrypted backup precede the write.
 - `pnpm keychain:build`: build the local Swift Keychain helper.
 - `pnpm verify:real-data`: opt-in local parser checks with safe result codes only.
@@ -31,6 +32,19 @@ Use Node 24 and the pinned pnpm version. `pnpm install` installs processing depe
 - `pnpm verify:codex-subscription`: opt-in external check using synthetic text and existing Codex sign-in; consumes subscription usage.
 
 For private source paths, invoke the corresponding script directly to avoid package-manager argument echoes. Database and recovery keys never belong in arguments or environment variables.
+
+## Private hosting on ExMachina
+
+MW-032 authorizes owner-only Tailscale access. `local.moneywave.stable` is a launchd user service on `127.0.0.1:43822`; Tailscale Serve maps private HTTPS port 9443 to it. Its `caffeinate -s` wrapper prevents system sleep while on AC power; battery operation, lid closure and manual sleep are not availability guarantees. The Mac must be online and logged in with its Keychain available. A reboot requires login before this user service is available.
+
+The launch agent at `~/Library/LaunchAgents/local.moneywave.stable.plist` selects a versioned source/dependency snapshot under ignored `data/runtime/hosting/releases/` and the existing `MONEYWAVE_DATA_DIR`. The owner's login is local configuration, never a tracked value. New workspace edits do not change the stable release. For an update, verify the current source, create another snapshot, preserve the existing plist for rollback, then switch its working directory and script path together and re-bootstrap the service. Never copy or reseed the financial database for a code release.
+
+- Check: `launchctl print gui/$(id -u)/local.moneywave.stable` and `tailscale serve status`.
+- Restart: `launchctl kickstart -k gui/$(id -u)/local.moneywave.stable`, then reload the browser to renew its session.
+- Stop mobile exposure: `tailscale serve --https=9443 off`.
+- Stop the app: `launchctl bootout gui/$(id -u)/local.moneywave.stable`.
+
+Do not reset the shared Tailscale Serve configuration: other apps use its other ports. The financial store remains shared with the local workspace and protected by its existing revision checks.
 
 ## Privacy
 

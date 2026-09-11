@@ -1,6 +1,6 @@
 # Decisions
 
-Current presentation scope is defined by MW-030 and MW-031. MW-029 records the earlier website removal; retained processing and privacy boundaries still apply.
+Current presentation scope is defined by MW-030, MW-031 and MW-032. MW-029 records the earlier website removal; retained processing and privacy boundaries still apply.
 
 ## MW-001: Local-only by default
 
@@ -222,3 +222,11 @@ Current presentation scope is defined by MW-030 and MW-031. MW-029 records the e
 The requester explicitly authorized reading their supplied NEAR Pikespeak and Ethereum Etherscan pages and adding these wallets to Net Worth. Wallet identities and observations stay in encrypted storage and ignored evidence files. This scope permits reading those public wallet pages, not wallet signing, private keys, account discovery or sharing bank data.
 
 One timestamped provider NAV per wallet contributes once. Token/staking breakdowns explain that NAV and are not additional assets. Immutable observations preserve source URLs and evidence hashes; explicit local import verifies evidence and a recoverable backup. Page reads have no external calls or implicit price refresh. USD values use dated cached official USD/EUR rates; missing rates remain unvalued. Current capital and period-end capital are separate selections, and observations never backfill earlier months. The displayed bank/cash history remains labelled as excluding crypto until historical crypto observations are available.
+
+## MW-032: Private stable hosting on ExMachina
+
+- **Date:** 2026-09-10
+- **Authorization:** the requester explicitly asked to host a stable version on ExMachina for their mobile browser.
+- **Boundary:** the code and SQLCipher store remain on ExMachina. Tailscale Serve provides private HTTPS to the owner's devices; no public Funnel, third-party hosting, telemetry or financial API integration is authorized.
+- **Transport:** the stable Node 24 service still binds only to loopback. Explicit paired `MONEYWAVE_TAILSCALE_ORIGIN` and `MONEYWAVE_TAILSCALE_LOGIN` settings enable one exact HTTPS origin and owner login. This mode rejects local Host bypasses, requires Serve's owner identity on every request and retains Origin/session/CSRF checks with a Secure `__Host-` cookie. Forwarded host/protocol headers are not authority. The default unconfigured CLI remains localhost-only.
+- **Operation:** a launchd user service runs a versioned local code/dependency snapshot using the existing encrypted data directory. Workspace edits take effect only after an explicit stable release update. Login/unlocked Keychain and an awake, online Mac are operational prerequisites. Stop only this Serve port and launchd label to roll back; other apps remain untouched.

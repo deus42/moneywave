@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { get } from 'node:http';
+import { get, request } from 'node:http';
 import { openEncryptedDatabase, type EncryptedDatabase } from '@/server/db/database';
 import { applyMigrations } from '@/server/db/migrations';
 import { WorkspaceStore } from '@/server/workspace/store';
@@ -156,6 +156,45 @@ describe('encrypted workspace and protected HTTP',()=>{
    expect((await fetch(origin+'/api/change',{method:'POST',headers,body:' '.repeat(128001)})).status).toBe(400);
    const annual=await(await fetch(origin+'/api/period?period=2090',{headers:{Cookie:cookie}})).json();expect(annual.net).toBe(11800);expect(annual.capital.asOf).toBe('2090-02-28');
    expect((await fetch(origin+'/data/runtime/test.db',{headers:{Cookie:cookie}})).status).toBe(404);
+  }finally{await new Promise<void>(done=>server.close(()=>done()));}
+ });
+ it('protects the explicit Tailscale origin with owner identity, Secure cookies and CSRF',async()=>{
+  const remote='https://synthetic.example.ts.net:9443',login='synthetic@example.invalid';
+  const options={store,sourceCurrent:true,staticDirectory:resolve('src/web'),centers:new FinanceCenters(db)};
+  for(const origin of ['http://synthetic.example.ts.net','https://evil.invalid','https://synthetic.example.ts.net/path','https://user@synthetic.example.ts.net','https://synthetic.example.ts.net/']){
+   expect(()=>createWorkspaceServer({...options,tailscale:{origin,login}})).toThrow();
+  }
+  expect(()=>createWorkspaceServer({...options,tailscale:{origin:remote,login:''}})).toThrow('TAILSCALE_CONFIG_INVALID');
+  const server=createWorkspaceServer({...options,tailscale:{origin:remote,login}});
+  await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));const address=server.address();if(!address||typeof address==='string')throw new Error('NO_ADDRESS');const local=`http://127.0.0.1:${address.port}`;
+  const call=(path:string,headers:Record<string,string>={},body?:string)=>new Promise<{status:number|undefined;headers:import('node:http').IncomingHttpHeaders;body:string}>((done,reject)=>{
+   const req=request(local+path,{method:body===undefined?'GET':'POST',headers},res=>{let text='';res.setEncoding('utf8');res.on('data',chunk=>text+=chunk);res.on('end',()=>done({status:res.statusCode,headers:res.headers,body:text}));});req.on('error',reject);req.end(body);
+  });
+  const identity={Host:new URL(remote).host,'Tailscale-User-Login':login};
+  try{
+   expect((await call('/',{Host:identity.Host})).status).toBe(403);
+   expect((await call('/',{...identity,'Tailscale-User-Login':'other@example.invalid'})).status).toBe(403);
+   expect((await call('/',{...identity,Host:'evil.invalid','X-Forwarded-Host':identity.Host,'X-Forwarded-Proto':'https'})).status).toBe(403);
+   expect((await call('/',{...identity,Origin:local})).status).toBe(403);
+   expect((await call('/',{...identity,'Sec-Fetch-Site':'cross-site'})).status).toBe(403);
+   expect((await call('/api/workspace',identity)).status).toBe(401);
+   const root=await call('/',identity);expect(root.status).toBe(200);
+   const setCookie=root.headers['set-cookie']![0];expect(setCookie).toContain('__Host-moneywave_session_');expect(setCookie).toContain('; Secure');expect(setCookie).toContain('HttpOnly; SameSite=Strict; Path=/');
+   const Cookie=setCookie.split(';')[0],authenticated={...identity,Cookie};
+   const workspace=await call('/api/workspace',authenticated);expect(workspace.status).toBe(200);
+   const csrf=JSON.parse(workspace.body).csrf;
+   expect((await call('/api/workspace',{Host:identity.Host,Cookie})).status).toBe(403);
+   expect((await call('/api/workspace',{Cookie})).status).toBe(403);
+   expect((await call('/',{'Tailscale-User-Login':login})).status).toBe(403);
+   expect((await call('/api/workspace',{...identity,Cookie:Cookie.replace('__Host-','')})).status).toBe(401);
+   const change=JSON.stringify({action:'budget',revision:0,from:'2090-02',category:'Food',amount:8100});
+   const headers={...authenticated,'Content-Type':'application/json','X-Moneywave-Csrf':csrf};
+   expect((await call('/api/change',headers,change)).status).toBe(403);
+   expect((await call('/api/change',{...headers,Origin:'https://evil.invalid'},change)).status).toBe(403);
+   expect((await call('/api/change',{...headers,Origin:remote,'X-Moneywave-Csrf':'bad'},change)).status).toBe(403);
+   expect((await call('/api/change',{...headers,Origin:remote},change)).status).toBe(200);
+   expect((await store.read()).revision).toBe(1);
+   expect((await call('/data/runtime/moneywave.db',authenticated)).status).toBe(404);
   }finally{await new Promise<void>(done=>server.close(()=>done()));}
  });
  it('uses foreign personal accounts and cash for both capital and chart without changing all-bank reporting',async()=>{
