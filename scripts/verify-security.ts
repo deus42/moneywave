@@ -52,6 +52,15 @@ const checks: Check[] = [
     },
   },
   {
+    code: "LOCAL_WORKSPACE_TRANSPORT",
+    run: async () => {
+      const source = await readFile("scripts/start-workspace.ts", "utf8");
+      const transport = await readFile("src/server/workspace/http.ts", "utf8");
+      return source.includes("server.listen(port,'127.0.0.1'")
+        && ["SameSite=Strict", "HttpOnly", "x-moneywave-csrf", "frame-ancestors 'none'", "REQUEST_DENIED", "BODY_TOO_LARGE"].every(value => transport.includes(value));
+    },
+  },
+  {
     code: "EGRESS_BOUNDARY",
     run: async () => {
       assertAllowedEgress("https://bank.gov.ua/");

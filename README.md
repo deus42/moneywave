@@ -1,10 +1,10 @@
 # MoneyWave
 
-Private personal-finance workspace: an encrypted, framework-independent processing core.
+Private personal-finance workspace: a local report-style website over an encrypted, framework-independent processing core.
 
 ## Requirements
 
-[High-level product requirements](docs/requirements.md): accounts and cash, money movement, meaningful categories, monthly reporting, net worth and the cost of moving money.
+[High-level product requirements](docs/requirements.md): accounts and cash, money movement, meaningful categories, monthly reporting, net worth and the cost of moving money. The approved local workspace is defined by MW-030.
 
 ## Retained
 
@@ -15,12 +15,14 @@ Private personal-finance workspace: an encrypted, framework-independent processi
 - Category rules, authorized sanitized Codex categorization, and read-only account/transaction/report projections.
 - Keychain/recovery, verified backups and synthetic processing tests.
 
-Unknown balances, unmatched movements and missing rates remain unknown.
+Unknown balances, unmatched movements and missing rates remain unknown. Report corrections and manual workspace edits remain separate from original bank records.
 
 ## Local commands
 
-Use Node 24 and the pinned pnpm version. `pnpm install` installs processing dependencies; `pnpm verify` runs lint, typecheck, synthetic tests and security checks.
+Use Node 24 and the pinned pnpm version. `pnpm install` installs processing dependencies; `pnpm verify` runs lint, typecheck, synthetic tests and security checks. The website uses native Node HTTP and local static assets; no framework build or external service is needed.
 
+- `pnpm start`: open the local workspace at `http://127.0.0.1:43821/`. Requires the existing Keychain-backed database and an initialized report.
+- `pnpm workspace:seed <ignored-local-report.json>`: validate and initialize the report projection; `--refresh` imports a later verified report while retaining compatible user edits. Source checks and a verified encrypted backup precede the write.
 - `pnpm keychain:build`: build the local Swift Keychain helper.
 - `pnpm verify:real-data`: opt-in local parser checks with safe result codes only.
 - `pnpm import:manual-positions <local-xlsx>`: preview manual monthly positions; `--commit` enables the separately authorized import.
@@ -43,3 +45,14 @@ Vault-Tec contains only project metadata. Do not upload financial material or ex
 - [Decisions](docs/decisions.md)
 - [Data handling](data/README.md)
 - [Agent instructions](AGENTS.md)
+
+
+## Workspace behavior
+
+Five chapters share a month/year selector: overview, budget, trips/events, purchases and transactions. Capital uses canonical dated positions; spending uses the explicitly imported corrected report. The UI shows the statement coverage and flags a changed ledger on startup. It never automatically imports bank data, refreshes FX, or sends financial data elsewhere.
+
+Category edits, effective-month budget limits, collections and revision history persist in SQLCipher. Existing payments can belong to a purchase and a trip without double counting. Explicit manual payments are separate user facts; linking a bank debit requires removing the manual amount first. Future events can have budgets, but future manual payments are rejected. Missing stock coverage does not become a complete Net Worth claim.
+
+The print view uses the same selected period and current edits; its PDF/print action uses the browser's print dialog. Source bank files remain immutable. Stocks are not yet connected.
+
+The crypto box includes captured Pikespeak NEAR NAV and Etherscan Ethereum holdings in current Net Worth. Each wallet contributes once; staking and token breakdowns are explanatory. Current capital and period-end capital have separate controls. The chart is explicitly bank/cash history, without retroactively invented crypto balances. Explorer observations show capture dates; reloading the site does not refresh market prices.

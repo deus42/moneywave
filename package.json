@@ -19,7 +19,9 @@
     "analyze:privatebank": "tsx scripts/analyze-privatebank.ts",
     "analyze:finance": "tsx scripts/analyze-finance.ts",
     "import:manual-positions": "tsx scripts/import-manual-positions.ts",
-    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:security"
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:security",
+    "start": "tsx scripts/start-workspace.ts",
+    "workspace:seed": "tsx scripts/seed-workspace.ts"
   },
   "dependencies": {
     "@journeyapps/sqlcipher": "6.0.0",

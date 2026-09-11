@@ -14,8 +14,10 @@ import { migration0012 } from "./0012-canonical-taxonomy";
 import { migration0013 } from "./0013-p2p-top-level";
 import { migration0014 } from "./0014-fx-source-valuations";
 import { migration0015 } from "./0015-manual-position-history";
+import { migration0016 } from "./0016-report-workspace";
+import { migration0017 } from "./0017-crypto-observations";
 
-const MIGRATIONS = [migration0001, migration0002, migration0003, migration0004, migration0005, migration0006, migration0007, migration0008, migration0009, migration0010, migration0011, migration0012, migration0013, migration0014, migration0015] as const;
+const MIGRATIONS = [migration0001, migration0002, migration0003, migration0004, migration0005, migration0006, migration0007, migration0008, migration0009, migration0010, migration0011, migration0012, migration0013, migration0014, migration0015, migration0016, migration0017] as const;
 
 export const CURRENT_SCHEMA_VERSION = MIGRATIONS.at(-1)?.version ?? 0;
 export const REQUIRED_TABLES = [
@@ -54,6 +56,10 @@ export const REQUIRED_TABLES = [
   "manual_position_series",
   "manual_position_facts",
   "manual_source_cells",
+  "workspace_reports",
+  "workspace_state",
+  "workspace_history",
+  "crypto_observations",
 ] as const;
 
 export async function applyMigrations(database: EncryptedDatabase): Promise<{

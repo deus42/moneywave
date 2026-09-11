@@ -2,7 +2,7 @@
 
 ## Selected Shape
 
-MoneyWave is a local TypeScript financial workspace on pinned Node 24 and pnpm. Existing CLI operators call the retained services directly and do not depend on the website. See [requirements](requirements.md).
+MoneyWave is a local TypeScript financial workspace on pinned Node 24 and pnpm. The approved website uses a narrow native Node HTTP transport on loopback and local authored HTML/CSS/JavaScript. Existing CLI operators call the retained services directly and do not depend on the website. See [requirements](requirements.md) and MW-030.
 
 - **Persistence:** SQLCipher through `@journeyapps/sqlcipher`, parameterized SQL, numbered migrations, and 64-bit minor-unit money values.
 - **Secrets:** a small Swift helper uses macOS Keychain `SecItem` for the database/recovery key and future provider tokens; secrets never travel through environment variables or command arguments. A domain-separated HKDF derives the identifier-HMAC key from the recoverable database key.
@@ -79,7 +79,7 @@ The read repository accepts calendar months and legacy compatibility periods. Mo
 - FOP preview identifiers default to `not_own`; commit requires the user to mark at least one owned FOP account. Ownership is never inferred from a filename or counterparty name.
 - Caller-supplied mapping IDs are requests, not authority. The import service derives the keyed identifier HMAC and reuses the matching local instrument/account when one exists; it rejects incompatible provider or identifier bindings.
 - A row-level identifier may bind an existing instrument-backed account without exposing the raw account/card value after import.
-- Description search and transaction filters use parameterized SQL and bounded pagination directly in local code. No access log records financial content or user searches.
+- Description search and transaction filters use parameterized SQL and bounded pagination directly in local code. The local workspace transport accepts allowlisted calendar filters and bounded JSON writes. No access log records financial content or user searches.
 
 ## Manual position history
 
@@ -100,3 +100,8 @@ Before adding statements for a provider already represented by an unlinked manua
 Erste records day precision and keeps only the last observed balance per day. Revolut keeps the final source-order balance when timestamps tie. Wise card debit and refund references retain direction so a shared provider ID does not erase the refund. All balance checks retain source order and expose discontinuities. The accepted Revolut slice has zero fees; nonzero fee rows are rejected until settlement semantics are separately evidenced. The imports do not prove missing opening balances or absent FX counterpart legs.
 
 Foreign-provider transaction types also feed a versioned, audited `statementCategory` normalization field. Original statement bytes, provider fields, ledger dates and amounts are preserved. Explicit exchange types remain movement boundaries, generic transfer types are only matching signals, and a bank fee remains a cost even when its description contains a provider name. Existing accepted matching thresholds and uniqueness checks remain unchanged.
+
+
+## Authorized local workspace — 2026-09-10
+
+The explicit site request and approved design supersede the earlier processing-only presentation boundary (MW-030). The processing core remains independent. `src/server/workspace/` provides protected local transport and versioned SQLCipher reporting overlays; `src/web/` contains the approved presentation, without financial source data or external assets. `pnpm start` runs it on loopback. `pnpm workspace:seed <ignored-local-report.json>` explicitly initializes the verified report projection after source validation and a verified encrypted backup. The site never derives, imports, rematches or contacts external services during reads. Canonical bank evidence is preserved.
