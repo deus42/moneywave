@@ -13,6 +13,7 @@ export const rowSchema = z.object({
   originalCategory: z.string().nullish(), homeGroup: z.string().nullish(), trip: z.string().nullish(),
   aiProvider: z.string().optional(), creditId: id.optional(), purchaseId: id.optional(),
   adjustmentKind: z.string().optional(), excluded: z.boolean().default(false), unresolved: z.boolean().default(false),
+  categoryPolicy: z.object({version:z.string(),rule:z.string()}).optional(),
 });
 export type ReportRow = z.infer<typeof rowSchema>;
 export const collectionSchema = z.object({

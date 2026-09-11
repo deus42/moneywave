@@ -36,6 +36,9 @@ export class ReclassificationPreparationService {
         'unlinked_transfer_in', 'unlinked_transfer_out'
       )
         AND NOT EXISTS (SELECT 1 FROM movement_legs leg WHERE leg.ledger_entry_id = le.id)
+        AND NOT EXISTS (SELECT 1 FROM categorization_rules rule WHERE rule.enabled=1
+          AND json_extract(rule.match_json,'$.type')='confirmed-entry-category-v1'
+          AND json_extract(rule.match_json,'$.entryId')=le.id AND json_extract(rule.match_json,'$.confirmedFx')=1)
       ORDER BY le.id
     `);
     const ids = rows

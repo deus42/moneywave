@@ -10,9 +10,9 @@ describe("personal categorization", () => {
     ["Продукти та супермаркети", "groceries"],
     ["Кафе, бари, ресторани", "dining"],
     ["Комунальні послуги", "utilities"],
-    ["Аптеки", "pharmacy"],
-    ["Таксі", "taxi"],
-    ["Одяг та взуття", "clothing"],
+    ["Аптеки", "home"],
+    ["Таксі", "transport"],
+    ["Одяг та взуття", "shopping"],
     ["Поповнення мобільного", "utilities"],
     ["Перекази", "p2p"],
   ])("maps normalized bank category %s to %s", (sourceCategory, categoryCode) => {
@@ -25,9 +25,9 @@ describe("personal categorization", () => {
   });
 
   it.each([
-    ["SYNTHETIC UBER TRIP", "taxi"],
+    ["SYNTHETIC UBER TRIP", "transport"],
     ["SYNTHETIC NETFLIX", "streaming"],
-    ["SYNTHETIC PHARMACY", "pharmacy"],
+    ["SYNTHETIC PHARMACY", "home"],
     ["SYNTHETIC SUPERMARKET", "groceries"],
   ])("uses a merchant heuristic for %s", (description, categoryCode) => {
     expect(classifyPersonalEntry({

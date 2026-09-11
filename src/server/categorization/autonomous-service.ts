@@ -7,6 +7,9 @@ import {
 import type { EncryptedDatabase } from "@/server/db/database";
 import { MCC_RULE_VERSION, normalizeCategoryAlias } from "./mcc";
 
+import {CATEGORY_POLICY_VERSION,policyCategoryCode} from "@/domain/category-policy";
+import {CategoryPolicyService} from "./category-policy-service";
+
 const CLASSIFICATION_VERSION = "canonical-v2";
 const AI_CHUNK_SIZE = 20;
 
@@ -87,6 +90,7 @@ export class AutonomousCategorizationService {
   }
 
   async run(): Promise<AutonomousCategorizationResult> {
+    const policy=await new CategoryPolicyService(this.#database).apply();
     const [entries, categories, aliases] = await Promise.all([
       this.#eligibleEntries(),
       this.#database.all<CategoryRow>("SELECT id, code FROM categories WHERE scope = 'personal' ORDER BY code"),
@@ -99,11 +103,11 @@ export class AutonomousCategorizationService {
         ORDER BY alias.priority DESC, alias.id
       `),
     ]);
-    if (entries.length === 0) return freshCounts();
+    if (entries.length === 0) return {...freshCounts(),assigned:policy.assigned,deterministic:policy.assigned};
     const categoryByCode = new Map(categories.map((category) => [category.code, category]));
     const allowedForAi = categories
       .map(({ code }) => code)
-      .filter((code) => !["personal_income", "transfers"].includes(code));
+      .filter((code) => policyCategoryCode(code)===code && !["personal_income", "transfers", "other_payouts"].includes(code));
     const immediate: PendingAssignment[] = [];
     const aiRows: Array<{ entry: EntryRow; merchantLabel: string }> = [];
     const aliasByEntry = new Map<string, AliasRow>();
@@ -154,6 +158,7 @@ export class AutonomousCategorizationService {
 
     const assignments = [...immediate, ...aiAssignments];
     const counts = freshCounts();
+    counts.assigned=policy.assigned;counts.deterministic=policy.assigned;
     counts.pendingOpenAI = pendingOpenAI;
     await this.#database.transaction(async () => {
       for (const assignment of assignments) {
@@ -172,13 +177,13 @@ export class AutonomousCategorizationService {
             category.id,
             assignment.result.method,
             assignment.result.confidence.toString(),
-            CLASSIFICATION_VERSION,
+            assignment.result.method === "user_rule" ? CATEGORY_POLICY_VERSION : CLASSIFICATION_VERSION,
             JSON.stringify(
               assignment.result.method === "alias"
                 ? { aliasId: aliasByEntry.get(assignment.entry.id)?.id ?? null }
                 : assignment.result.method === "mcc"
                   ? { ruleVersion: MCC_RULE_VERSION, mcc: assignment.entry.mcc }
-                  : { classificationVersion: CLASSIFICATION_VERSION },
+                  : { classificationVersion: CLASSIFICATION_VERSION, categoryPolicyVersion:CATEGORY_POLICY_VERSION },
             ),
             assignment.entry.id,
           ],
@@ -193,7 +198,7 @@ export class AutonomousCategorizationService {
           await this.#database.run("UPDATE ledger_entries SET entry_kind = ? WHERE id = ? AND entry_kind = 'unclassified'", [entryKind, assignment.entry.id]);
         }
         counts.assigned += 1;
-        if (assignment.result.method === "deterministic") counts.deterministic += 1;
+        if (["deterministic","user_rule"].includes(assignment.result.method)) counts.deterministic += 1;
         else if (assignment.result.method === "bank") counts.bank += 1;
         else if (assignment.result.method === "alias") counts.alias += 1;
         else if (assignment.result.method === "mcc") counts.mcc += 1;

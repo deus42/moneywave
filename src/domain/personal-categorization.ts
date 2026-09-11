@@ -1,6 +1,7 @@
 import { sanitizeForCategorization } from "@/domain/categorization";
 import { hasExternalAccountTransferSignal, hasFxSignal, hasMerchantFxPaymentSignal, hasOwnTransferSignal } from "@/domain/transaction-signals";
 import { categoryForMcc } from "@/server/categorization/mcc";
+import {categoryCodeForGroup,confirmedMerchantCategory,policyCategoryCode} from './category-policy';
 
 export interface PersonalCategorizationInput {
   direction: "debit" | "credit";
@@ -14,7 +15,7 @@ export interface PersonalCategorizationInput {
 export type PersonalCategorizationResult = {
   state: "assigned";
   categoryCode: string;
-  method: "alias" | "deterministic" | "mcc" | "merchant_heuristic" | "bank";
+  method: "alias" | "deterministic" | "mcc" | "merchant_heuristic" | "bank" | "user_rule";
   confidence: number;
   terminalSpend: boolean;
 } | {
@@ -65,11 +66,11 @@ const MERCHANT_RULES: ReadonlyArray<[RegExp, string]> = [
 
 function assigned(
   categoryCode: string,
-  method: "alias" | "deterministic" | "mcc" | "merchant_heuristic" | "bank",
+  method: "alias" | "deterministic" | "mcc" | "merchant_heuristic" | "bank" | "user_rule",
   confidence: number,
   terminalSpend: boolean,
 ): PersonalCategorizationResult {
-  return { state: "assigned", categoryCode, method, confidence, terminalSpend };
+  return { state: "assigned", categoryCode:policyCategoryCode(categoryCode), method, confidence, terminalSpend };
 }
 
 function firstRule(value: string, rules: ReadonlyArray<readonly [RegExp, string]>): string | null {
@@ -101,9 +102,14 @@ export function classifyPersonalEntry(input: PersonalCategorizationInput): Perso
   }
   if (input.direction === "credit") return assigned("personal_income", "deterministic", 0.9, false);
 
+  const merchant=confirmedMerchantCategory(description);
+  if(merchant&&!/(?:переказ|перерахуван|transfer|card\s+to\s+card)/iu.test(sourceCategory))return assigned(merchant.categoryCode,'user_rule',1,true);
   if (input.aliasCategoryCode) return assigned(input.aliasCategoryCode, "alias", 1, true);
   const mccCategory = categoryForMcc(input.mcc);
   if (mccCategory) return assigned(mccCategory, "mcc", 0.98, true);
+
+  const confirmedSource=categoryCodeForGroup(sourceCategory);
+  if(confirmedSource)return assigned(confirmedSource,'user_rule',1,true);
 
   const bankCategory = firstRule(sourceCategory, BANK_CATEGORY_RULES);
   if (bankCategory) return assigned(bankCategory, "bank", 0.92, true);

@@ -1,3 +1,5 @@
+import {policyCategoryCode} from "@/domain/category-policy";
+import {CategoryPolicyService} from "./category-policy-service";
 import { randomUUID } from "node:crypto";
 
 import {
@@ -35,6 +37,7 @@ export class CategorizationApplicationService {
     confidence: number;
     needsReview: boolean;
   }> {
+    await new CategoryPolicyService(this.#database).apply(entryId);
     const entry = await this.#entry(entryId);
     if (
       entry.direction !== "debit"
@@ -43,10 +46,13 @@ export class CategorizationApplicationService {
     ) {
       throw new Error("OPENAI_ENTRY_NOT_ELIGIBLE");
     }
+    const confirmed=await this.#database.get<{categoryCode:string;method:string;confidence:string|null;needsReview:number}>(`SELECT c.code AS categoryCode,a.method,a.confidence_text AS confidence,a.needs_review AS needsReview
+      FROM category_assignments a JOIN categories c ON c.id=a.category_id WHERE a.ledger_entry_id=? ORDER BY a.assigned_at DESC,a.rowid DESC LIMIT 1`,[entryId]);
+    if(confirmed&&['manual','user_rule'].includes(confirmed.method))return {categoryCode:confirmed.categoryCode,confidence:Number(confirmed.confidence??1),needsReview:confirmed.needsReview===1};
     const sanitizedLabel = sanitizeForCategorization(merchantLabel).slice(0, 512);
     if (!sanitizedLabel) throw new Error("OPENAI_INPUT_EMPTY");
     const categories = await this.#database.all<CategoryRow>(
-      "SELECT id, code FROM categories WHERE scope = 'personal' AND editable = 1 AND code <> 'personal_income' ORDER BY code",
+      "SELECT id, code FROM categories WHERE scope = 'personal' AND editable = 1 AND code NOT IN ('personal_income','transfers','other_payouts') ORDER BY code",
     );
     const result = await this.#categorization.categorize({
       id: entry.id,
@@ -59,7 +65,7 @@ export class CategorizationApplicationService {
       merchantHeuristics: [],
       bankCategoryMap: {},
       ai: this.#classifier,
-      allowedCategoryCodes: categories.map(({ code }) => code),
+      allowedCategoryCodes: categories.map(({ code }) => code).filter(code=>policyCategoryCode(code)===code),
     });
     if (result.state !== "assigned" || result.method !== "openai_codex" || result.confidence === null) {
       throw new Error(result.state === "categorization_pending" ? result.reasonCode : "OPENAI_OUTPUT_INVALID");

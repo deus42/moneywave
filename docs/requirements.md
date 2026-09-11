@@ -76,3 +76,7 @@
 Критерій результату: залишки з поточного ядра, відтворені виправлені суми звіту, збереження/скасування правок, зрозуміле покриття дат і відсутність дублювання. Новий інтерфейс не перетворює неповні дані на повний Net Worth або незвірений грошовий залишок на заощадження.
 
 Додатково прямо погоджено NEAR NAV з Pikespeak та Ethereum-гаманець з Etherscan (MW-031). Окремий криптоблок показує датовані оцінки, стейкінг і токени; один NAV гаманця входить у загальний Net Worth один раз. Поточний стан і кінець обраного періоду перемикаються окремо. Поточні ціни не підміняють історичні залишки; це збережені оцінки, без автоматичної синхронізації.
+
+## Confirmed categorization — 2026-09-11
+
+The [recorded category rules](category-rules.md) apply to new imports, automatic reprocessing and explicit report refresh. Manual corrections, category names, effective-month budgets and trip assignments persist. Confirmed own currency purchases stay outside spending through exact local rules; payment amount alone must never establish FX. Unallocated refunds belong to other payouts and retain their negative sign. This implements the request to make category corrections durable (MW-033).

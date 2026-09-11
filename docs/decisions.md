@@ -230,3 +230,11 @@ One timestamped provider NAV per wallet contributes once. Token/staking breakdow
 - **Boundary:** the code and SQLCipher store remain on ExMachina. Tailscale Serve provides private HTTPS to the owner's devices; no public Funnel, third-party hosting, telemetry or financial API integration is authorized.
 - **Transport:** the stable Node 24 service still binds only to loopback. Explicit paired `MONEYWAVE_TAILSCALE_ORIGIN` and `MONEYWAVE_TAILSCALE_LOGIN` settings enable one exact HTTPS origin and owner login. This mode rejects local Host bypasses, requires Serve's owner identity on every request and retains Origin/session/CSRF checks with a Secure `__Host-` cookie. Forwarded host/protocol headers are not authority. The default unconfigured CLI remains localhost-only.
 - **Operation:** a launchd user service runs a versioned local code/dependency snapshot using the existing encrypted data directory. Workspace edits take effect only after an explicit stable release update. Login/unlocked Keychain and an awake, online Mac are operational prerequisites. Stop only this Serve port and launchd label to roll back; other apps remain untouched.
+
+## MW-033: Confirmed categories survive reprocessing
+
+- **Date:** 2026-09-11
+- **Authorization:** the requester asked to persist every agreed category rule and report the verification result.
+- **Decision:** One versioned [category policy](category-rules.md) governs deterministic merchant rules, canonical category consolidation and explicit report refresh. Existing encrypted `categorization_rules` stores exact confirmed entry decisions; the optional workspace adapter synchronizes current decisions before processing. No schema migration or new service boundary is needed.
+- **Preservation:** manual assignments, workspace corrections, budget versions, aliases and trip membership survive. Confirmed FX exclusions are identity-specific and create no matching leg or balance. No amount-only inference is permitted. Source evidence remains immutable and previous derived assignments remain auditable.
+- **Verification:** synthetic regressions and isolated encrypted preparation/classification replay with AI disabled, followed by a verified-backup rule installation and readback. Full imports, movement discovery, external calls and a stable release update are separate operations.

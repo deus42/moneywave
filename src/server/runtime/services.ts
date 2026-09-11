@@ -19,6 +19,8 @@ import { CostService } from "@/server/movements/cost-service";
 import { AutonomousCostService } from "@/server/movements/autonomous-cost-service";
 import { MovementService } from "@/server/movements/service";
 import { runAutonomousAnalysis } from "@/server/analysis/autonomous-analysis";
+import {saveWorkspaceCategoryRules} from "@/server/workspace/processing-rules";
+import {CategoryPolicyService} from "@/server/categorization/category-policy-service";
 import { AutonomousCategorizationService } from "@/server/categorization/autonomous-service";
 import { EntryClassificationService } from "@/server/categorization/entry-classification";
 import { ReclassificationPreparationService } from "@/server/categorization/reclassification-preparation";
@@ -219,6 +221,8 @@ export async function refreshDerivedState(): Promise<{
 }> {
   const database = await getDatabase();
   const fxService = await getFxService();
+  await saveWorkspaceCategoryRules(database);
+  await new CategoryPolicyService(database).apply();
   return runAutonomousAnalysis({
     recoverUndated: () => new UndatedReconciliationService(database).refresh(),
     repairAutomaticFx: () => new AutomaticFxRepairService(database).run(),

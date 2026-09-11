@@ -5,6 +5,9 @@ import { join } from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {CategorizationApplicationService} from "@/server/categorization/application-service";
+import { CategoryPolicyService } from "@/server/categorization/category-policy-service";
+import { ReclassificationPreparationService } from "@/server/categorization/reclassification-preparation";
 import { AutonomousCategorizationService } from "@/server/categorization/autonomous-service";
 import { openEncryptedDatabase, type EncryptedDatabase } from "@/server/db/database";
 import { applyMigrations } from "@/server/db/migrations";
@@ -83,7 +86,7 @@ describe("autonomous personal categorization", () => {
       { entryId: "ai", code: "education", method: "openai_codex", review: 0 },
       { entryId: "bank", code: "groceries", method: "bank", review: 0 },
       { entryId: "income", code: "personal_income", method: "deterministic", review: 0 },
-      { entryId: "merchant", code: "taxi", method: "merchant_heuristic", review: 0 },
+      { entryId: "merchant", code: "transport", method: "merchant_heuristic", review: 0 },
       { entryId: "transfer", code: "transfers", method: "deterministic", review: 0 },
     ]);
     expect(await database.get<{ kind: string }>("SELECT entry_kind AS kind FROM ledger_entries WHERE id = 'transfer'"))
@@ -150,6 +153,51 @@ describe("autonomous personal categorization", () => {
     expect(categorizeBatch).toHaveBeenCalledTimes(2);
     expect(await database.get<{ count: number }>("SELECT count(*) AS count FROM category_assignments"))
       .toEqual({ count: 20 });
+  });
+
+  it("reprocesses confirmed rules, retains manual categories and does not infer FX from amounts", async () => {
+    for (const id of ["synthetic-coffee", "synthetic-manual", "synthetic-fx", "synthetic-grocery", "synthetic-sport"]) {
+      await addEntry({id, description:id.includes("coffee") || id.includes("manual") ? "SYNTHETIC Circle Coffee" : "SYNTHETIC purchase", sourceCategory:id.includes("grocery") ? "Продукти" : undefined});
+    }
+    for (const [id,category,method] of [["synthetic-coffee","dining","bank"],["synthetic-manual","education","manual"],["synthetic-sport","fitness","mcc"]]) {
+      await database.run("INSERT INTO category_assignments(id,ledger_entry_id,category_id,method,classification_version) VALUES(?,?,?,?, 'canonical-v2')",[randomUUID(),id,`personal-${category}`,method]);
+    }
+    const policy=new CategoryPolicyService(database);
+    await policy.saveConfirmedRules([{entryId:"synthetic-fx",categoryCode:"transfers",confirmedFx:true}]);
+    const classifier={categorizeBatch:vi.fn(async()=>{throw new Error("MUST_NOT_CALL_AI");})};
+    const service=new AutonomousCategorizationService(database,classifier);
+    await new ReclassificationPreparationService(database).run();
+    await service.run();
+    const current=()=>database.all<{id:string;kind:string;code:string}>(`SELECT e.id,e.entry_kind AS kind,c.code FROM ledger_entries e
+      JOIN category_assignments a ON a.rowid=(SELECT rowid FROM category_assignments WHERE ledger_entry_id=e.id ORDER BY assigned_at DESC,rowid DESC LIMIT 1)
+      JOIN categories c ON c.id=a.category_id ORDER BY e.id`);
+    expect(await current()).toEqual([
+      {id:"synthetic-coffee",kind:"terminal_personal_expense",code:"coffee"},
+      {id:"synthetic-fx",kind:"unlinked_transfer_out",code:"transfers"},
+      {id:"synthetic-grocery",kind:"terminal_personal_expense",code:"groceries"},
+      {id:"synthetic-manual",kind:"terminal_personal_expense",code:"education"},
+      {id:"synthetic-sport",kind:"terminal_personal_expense",code:"travel"},
+    ]);
+    const count=await database.get("SELECT count(*) AS n FROM category_assignments");
+    await new ReclassificationPreparationService(database).run();await service.run();
+    expect(await database.get("SELECT count(*) AS n FROM category_assignments")).toEqual(count);
+    expect((await current()).find(r=>r.id==="synthetic-fx")?.kind).toBe("unlinked_transfer_out");
+    expect(classifier.categorizeBatch).not.toHaveBeenCalled();
+    expect(await database.get("SELECT count(*) AS n FROM movement_legs")).toEqual({n:0});
+  });
+
+  it("applies new merchant rules on an unclassified import and protects them from an AI recategorization", async () => {
+    await addEntry({id:"synthetic-new-circle",kind:"unclassified",description:"SYNTHETIC Coffee Circl",mcc:"5814"});
+    const classifier={categorizeBatch:vi.fn(async()=>{throw new Error("MUST_NOT_CALL_AI");})};
+    await new AutonomousCategorizationService(database,classifier).run();
+    expect(await database.get("SELECT entry_kind AS kind FROM ledger_entries WHERE id='synthetic-new-circle'"))
+      .toEqual({kind:"terminal_personal_expense"});
+    expect(classifier.categorizeBatch).not.toHaveBeenCalled();
+    await addEntry({id:"synthetic-other-circle",kind:"unclassified",description:"SYNTHETIC Circle Coffee"});
+    const ai={categorize:vi.fn(async()=>{throw new Error("MUST_NOT_CALL_AI");})};
+    const result=await new CategorizationApplicationService(database,ai).categorizeWithOpenAI("synthetic-new-circle","SYNTHETIC Circle Coffee");
+    expect(result.categoryCode).toBe("coffee");expect(ai.categorize).not.toHaveBeenCalled();
+    expect(await database.get("SELECT count(*) AS n FROM category_assignments WHERE ledger_entry_id='synthetic-other-circle'")).toEqual({n:0});
   });
 
   it("preserves an existing manual assignment", async () => {
