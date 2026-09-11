@@ -1,0 +1,6 @@
+allowBuilds:
+  '@journeyapps/sqlcipher': true
+  esbuild: true
+  unrs-resolver: set this to true or false
+minimumReleaseAgeExclude:
+  - '@openai/codex@0.153.0-darwin-arm64 || 0.153.0-darwin-x64 || 0.153.0-linux-arm64 || 0.153.0-linux-x64 || 0.153.0-win32-arm64 || 0.153.0-win32-x64 || 0.153.0'

@@ -1,0 +1,64 @@
+# macOS and editor noise
+.DS_Store
+*.swp
+*.swo
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local financial data: only the handling guide is trackable
+/data/*
+!/data/README.md
+
+# Local task continuity: only the template/guide is trackable
+/tasks/worklogs/*
+!/tasks/worklogs/README.md
+
+# Local design-companion sessions
+.superpowers/
+
+# Financial statements and exports are ignored everywhere by default
+*.csv
+*.ofx
+*.qfx
+*.qbo
+*.mt940
+*.xls
+*.xlsx
+*.pdf
+
+# Clearly synthetic fixtures may be tracked deliberately
+!/tests/fixtures/synthetic/
+!/tests/fixtures/synthetic/**
+
+# Databases, backups, logs, and runtime artifacts
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.bak
+*.backup
+*.log
+/backups/
+/exports/
+/imports/
+/logs/
+/runtime/
+/tmp/
+.cache/
+coverage/
+dist/
+build/
+.next/
+*.tsbuildinfo
+playwright-report/
+test-results/
+.playwright-cli/
+node_modules/
+__pycache__/
+*.py[cod]

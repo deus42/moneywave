@@ -1,0 +1,40 @@
+{
+  "name": "moneywave",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "packageManager": "pnpm@11.16.0",
+  "scripts": {
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "keychain:build": "tsx scripts/build-keychain.ts",
+    "verify:security": "tsx scripts/verify-security.ts",
+    "verify:real-data": "tsx scripts/verify-real-data.ts",
+    "verify:codex-subscription": "tsx scripts/verify-codex-subscription.ts",
+    "analyze:privatebank": "tsx scripts/analyze-privatebank.ts",
+    "analyze:finance": "tsx scripts/analyze-finance.ts",
+    "import:manual-positions": "tsx scripts/import-manual-positions.ts",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:security"
+  },
+  "dependencies": {
+    "@journeyapps/sqlcipher": "6.0.0",
+    "@openai/codex": "0.153.0",
+    "csv-parse": "7.0.2",
+    "decimal.js": "10.6.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "eslint": "9.39.5",
+    "tsx": "4.23.13",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0",
+    "vitest": "4.1.11"
+  }
+}
