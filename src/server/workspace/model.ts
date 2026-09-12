@@ -162,6 +162,18 @@ export function reportingCoverage(report: WorkspaceReport, state: WorkspaceState
   result.months.sort((a,b)=>a.month.localeCompare(b.month));
   return result;
 }
+export function workspaceCalendar(report: WorkspaceReport, state: WorkspaceState) {
+  const covered=reportingCoverage(report,state),months=new Set(covered.months.map(m=>m.month));
+  let from=covered.coverage.start,to=covered.coverage.end;
+  for(const collection of state.collections){
+    if(collection.start<from)from=collection.start;
+    if(collection.end>to)to=collection.end;
+    const first=Number(collection.start.slice(0,4))*12+Number(collection.start.slice(5,7))-1;
+    const last=Number(collection.end.slice(0,4))*12+Number(collection.end.slice(5,7))-1;
+    for(let value=first;value<=last;value++)months.add(`${String(Math.floor(value/12)).padStart(4,'0')}-${String(value%12+1).padStart(2,'0')}`);
+  }
+  return {months:[...months].sort(),range:{from,to}};
+}
 function reportingRange(period:string, coverage:WorkspaceReport['coverage'], today:string) {
   if (period === 'all') return {from:coverage.start,to:coverage.end};
   if (period === 'last12') {
@@ -205,11 +217,12 @@ export function comparisonFor(report: WorkspaceReport, state: WorkspaceState, pe
       actual: exactSum(rows.filter(r=>r.group===category).map(r=>r.eur)) })) };
 }
 export function summary(report: WorkspaceReport, state: WorkspaceState, period: string, today=new Date().toISOString().slice(0,10)) {
+  const calendar=workspaceCalendar(report,state);
   report = reportingCoverage(report,state);
-  const range=reportingRange(period,report.coverage,today);
+  const range=period==='all'?calendar.range:reportingRange(period,report.coverage,today);
   const inRange=(value:string)=>value.slice(0,7)>=range.from.slice(0,7)&&value.slice(0,7)<=range.to.slice(0,7);
   const months = report.months.filter(m => inRange(m.month));
-  if (!months.length && period!=='last12') throw new Error('PERIOD_UNAVAILABLE');
+  if (!months.length && period!=='last12' && !calendar.months.some(inRange)) throw new Error('PERIOD_UNAVAILABLE');
   const availableRange=months.length?{from:[months[0].month+'-01',report.coverage.start].sort().at(-1)!,to:[monthEnd(months.at(-1)!.month),report.coverage.end].sort()[0]}:null;
   const rows = effectiveRows(report, state).filter(r => inRange(r.date) && isCashflowRow(r));
   const original = report.rows.filter(r => inRange(r.date) && isCashflowRow(r));

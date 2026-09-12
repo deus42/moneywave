@@ -41,7 +41,10 @@ describe('trip costs, manual evidence and coverage',()=>{
   state.collections.push(collectionSchema.parse({id:'synthetic-old',kind:'trip',name:'SYNTHETIC old trip',start:'2089-06-10',end:'2089-06-12',budget:null,rowIds:['synthetic-history'],payments:[{id:'synthetic-old-cash',date:'2089-06',eur:1000,description:'SYNTHETIC historical cash'}]}));
   expect(reportingCoverage(report,state).coverage).toEqual(report.coverage);
   expect(reportingCoverage(report,state).months).toHaveLength(3);
-  expect(()=>summary(report,state,'2089')).toThrow('PERIOD_UNAVAILABLE');
+  expect(summary(report,state,'2089')).toMatchObject({months:[],availableRange:null,rows:[],net:0,plan:0,fx:null});
+  expect(summary(report,state,'2089-06')).toMatchObject({months:[],availableRange:null,rows:[]});
+  expect(()=>summary(report,state,'2089-05')).toThrow('PERIOD_UNAVAILABLE');
+  expect(summary(report,state,'all')).toMatchObject({range:{from:'2089-06-10',to:'2090-03-31'},income:150000,net:10000,plan:60000});
   expect(annualComparison(report,state,{mode:'calendar',year:2090}).previous.net).toBeNull();
   expect(collectionTotals(state.collections[1],effectiveRows(report,state)).net).toBe(9800);
  });

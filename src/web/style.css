@@ -73,9 +73,11 @@ table.data.transactions td:nth-child(2),table.data.transactions td:nth-child(3),
 .journey-toolbar>.chip{white-space:nowrap;min-height:38px}
 .journey-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
 .journey-year+.journey-year{margin-top:32px}
-.journey-year-heading{display:flex;align-items:baseline;gap:12px;margin:0 0 17px}
+.journey-year-heading{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px 12px;margin:0 0 17px}
 .journey-year-heading h2{font-size:23px;font-weight:520;letter-spacing:-.6px}
 .journey-year-heading span{font-size:11px;color:var(--muted)}
+.journey-year-total{display:flex;align-items:baseline;gap:10px;margin-left:auto}
+.journey-year-total strong{font-size:20px;font-weight:550;letter-spacing:-.4px;font-variant-numeric:tabular-nums}
 .journey-card{--scene:#608e80;--scene-bg:#eaf0e7;position:relative;overflow:hidden;text-align:left;border:1px solid #d9e3d8;border-radius:12px;background:#fffefa;padding:0;min-width:0;color:var(--ink);transition:transform .18s ease,border-color .18s ease,box-shadow .18s ease}
 .journey-card:hover{transform:translateY(-3px);border-color:#91b4a4;box-shadow:0 7px 20px #163b3010;color:var(--ink)}
 .journey-card:focus-visible{outline:2px solid var(--green);outline-offset:4px}
@@ -252,6 +254,7 @@ body:has(#row-form) .footer{display:none}
 .collection-summary>div{display:flex;align-items:baseline;gap:12px}
 .collection-summary span{font-size:12px;color:var(--muted)}
 .collection-summary strong{font-size:25px;font-weight:550;letter-spacing:-.6px;font-variant-numeric:tabular-nums}
+.collection-summary [data-budget]{padding:0;font:inherit;font-variant-numeric:inherit}
 .collection-summary>div:not(:first-child) strong{font-size:19px}
 .collection-empty{padding:42px 0;border-top:1px solid var(--line)}
 .collection-empty h3{font-size:16px;font-weight:550;margin:0 0 10px}
@@ -1007,3 +1010,12 @@ table.data.sv-accounts tfoot th,table.data.sv-accounts tfoot td{font-weight:600;
 table.data.sv-month-table td,table.data.sv-accounts td{white-space:nowrap}
 table.data.sv-accounts td:first-child{white-space:normal}
 @media(max-width:700px){table.data.sv-month-table th:nth-child(5),table.data.sv-month-table td:nth-child(5){display:none}}
+
+/* Trip creation belongs with the list controls. */
+.trip-toolbar .select{margin-left:auto}
+.trip-toolbar .button{flex-shrink:0;white-space:nowrap;min-height:40px}
+@media(max-width:700px){
+ .trip-toolbar{flex-wrap:wrap}
+ .trip-toolbar .search{flex-basis:100%;width:100%}
+ .trip-toolbar .select{flex:1;width:auto;margin-left:0}
+}

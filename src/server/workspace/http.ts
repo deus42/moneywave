@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isIPv4 } from 'node:net';
 import type { WorkspaceStore } from './store';
-import { annualComparison, annualComparisonSchema, collectionTotals, comparisonFor, effectiveRows, purchaseValue, reportingCoverage, summary } from './model';
+import { annualComparison, annualComparisonSchema, collectionTotals, comparisonFor, effectiveRows, purchaseValue, reportingCoverage, summary, workspaceCalendar } from './model';
 import {withCryptoHistory} from './crypto-history';
 import { includeWorkspacePosition } from './capital';
 import { savingsView } from './savings';
@@ -65,7 +65,7 @@ export function createWorkspaceServer(options: {store:WorkspaceStore; centers:Pi
       if (req.method === 'GET' && url.pathname === '/api/workspace') {
         const {revision,report,state} = await options.store.read();
         const rows=effectiveRows(report,state);
-        return reply(res,200,{revision,report:reportingCoverage(report,state),statementCoverage:report.coverage,state,rows:rows.map(r=>({...r,purchaseValue:purchaseValue(r)})),
+        return reply(res,200,{revision,report:reportingCoverage(report,state),calendar:workspaceCalendar(report,state),statementCoverage:report.coverage,state,rows:rows.map(r=>({...r,purchaseValue:purchaseValue(r)})),
           collectionTotals:Object.fromEntries(state.collections.map(c=>[c.id,collectionTotals(c,rows)])),cashAccounts:await options.store.cashAccounts(),cashHistory:await options.store.cashHistory(),csrf,sourceCurrent:options.sourceCurrent});
       }
       if (req.method === 'GET' && url.pathname === '/api/period') {

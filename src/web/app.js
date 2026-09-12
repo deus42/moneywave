@@ -20,7 +20,8 @@ let workspace, view, previous, capitalHistory=[], page='overview', period='', ca
 let transactionLimit=80, budgetFilter='all', budgetSort='overspend', collectionQuery='', collectionKind='all', transactionStatus='all', formBaseline='';
 const selectedCapital=()=>view.capital;
 const inPeriod=value=>value.slice(0,7)>=view.range.from.slice(0,7)&&value.slice(0,7)<=view.range.to.slice(0,7);
-const validPeriod=value=>value==='all'||value==='last12'||workspace.report.months.some(m=>m.month===value||m.month.slice(0,4)===value);
+const calendarMonths=()=>workspace.calendar?.months??workspace.report.months.map(m=>m.month);
+const validPeriod=value=>value==='all'||value==='last12'||calendarMonths().some(m=>m===value||m.slice(0,4)===value);
 const nativeAmount=r=>r.nativeMinor!=null&&r.currency?`${new Intl.NumberFormat('uk-UA',{maximumFractionDigits:2}).format(Math.abs(Number(r.nativeMinor))/100)} ${r.currency}`:null;
 const usd=minor=>minor===null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(minor/100);
 const detailPage = $('#detail-page');
@@ -95,17 +96,17 @@ function titlePeriod() { return period==='all'?'Весь період':period===
 const periodIcons={prev:'<path d="m15 18-6-6 6-6"/>',next:'<path d="m9 18 6-6-6-6"/>',down:'<path d="m6 9 6 6 6-6"/>',check:'<path d="M20 6 9 17l-5-5"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 11h18"/>'};
 const periodIcon=(name,cls='')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${periodIcons[name]}</svg>`;
 function periodCalendar(year) {
- const years=[...new Set(workspace.report.months.map(m=>m.month.slice(0,4)))],index=years.indexOf(year),today=view.currentCapital.asOf.slice(0,7);
+ const years=[...new Set(calendarMonths().map(m=>m.slice(0,4)))],index=years.indexOf(year),today=view.currentCapital.asOf.slice(0,7);
  const inRange=p=>period==='last12'&&p>=view.range.from.slice(0,7)&&p<=view.range.to.slice(0,7);
  return `<div class="period-calendar-heading"><button type="button" class="period-year-step" data-calendar-year="${years[index-1]??''}" aria-label="Попередній рік" ${index>0?'':'disabled'}>${periodIcon('prev')}</button><strong aria-live="polite">${year}</strong><button type="button" class="period-year-step" data-calendar-year="${years[index+1]??''}" aria-label="Наступний рік" ${index>=0&&index<years.length-1?'':'disabled'}>${periodIcon('next')}</button></div><button class="period-option period-year-option" data-period="${year}" aria-pressed="${period===year}">Весь ${year} рік</button><div class="period-month-grid" role="group" aria-label="Місяці ${year}">${monthNames.map((label,i)=>{const p=`${year}-${String(i+1).padStart(2,'0')}`;return `<button class="period-option period-month${p===today?' is-current':''}${inRange(p)?' in-range':''}" data-period="${p}" aria-label="${fullMonths[i]} ${year}" aria-pressed="${period===p}" ${validPeriod(p)?'':'disabled'}>${label}</button>`;}).join('')}</div>`;
 }
 function renderPeriods() {
- const years=[...new Set(workspace.report.months.map(m=>m.month.slice(0,4)))],today=view.currentCapital.asOf,currentMonth=today.slice(0,7),currentYear=today.slice(0,4);
+ const years=[...new Set(calendarMonths().map(m=>m.slice(0,4)))],today=view.currentCapital.asOf,currentMonth=today.slice(0,7),currentYear=today.slice(0,4);
  const priorMonth=new Date(Date.UTC(Number(currentYear),Number(today.slice(5,7))-2,1)).toISOString().slice(0,7);
  const year=/^\d{4}/.test(period)?period.slice(0,4):years.includes(currentYear)?currentYear:years.at(-1);
  const short=m=>`${monthNames[Number(m.slice(5))-1]} ${m.slice(0,4)}`;
  const choices=[['Цей місяць',currentMonth,short(currentMonth)],['Минулий місяць',priorMonth,short(priorMonth)],['Цей рік',currentYear,currentYear],['Останні 12 місяців','last12','12 міс.'],['Весь період','all',`з ${years[0]}`]];
- const adjacent=period.length===4?years:workspace.report.months.map(m=>m.month),index=adjacent.indexOf(period),prev=adjacent[index-1],next=index>=0?adjacent[index+1]:null;
+ const adjacent=period.length===4?years:calendarMonths(),index=adjacent.indexOf(period),prev=adjacent[index-1],next=index>=0?adjacent[index+1]:null;
  $('#periods').innerHTML=`<div class="period-toolbar"><div class="period-control"><div class="period-bar"><button id="period-previous" class="period-step" data-period="${prev??''}" aria-label="Попередній період" ${prev?'':'disabled'}>${periodIcon('prev')}</button><button id="period-trigger" class="period-trigger" data-action="periodPicker" aria-haspopup="dialog" aria-expanded="false" aria-controls="period-popover">${periodIcon('calendar','period-icon')}<span class="period-trigger-text"><strong>${esc(titlePeriod())}</strong><small>${date(view.range.from)} — ${date(view.range.to)}</small></span>${periodIcon('down','period-chevron')}</button><button id="period-next" class="period-step" data-period="${next??''}" aria-label="Наступний період" ${next?'':'disabled'}>${periodIcon('next')}</button></div><div id="period-popover" class="period-popover" role="dialog" aria-label="Вибрати період" hidden><div class="period-presets" role="group" aria-label="Швидкий вибір"><span class="period-label">Швидкий вибір</span>${choices.map(([label,value,hint])=>`<button class="period-option period-preset" data-period="${value}" aria-pressed="${period===value}" ${validPeriod(value)?'':'disabled'}><span>${label}</span><small>${esc(hint)}</small>${periodIcon('check','period-check')}</button>`).join('')}</div><div id="period-calendar" class="period-calendar">${periodCalendar(year)}</div></div></div></div>`;
 }
 function closePeriodPicker(focus=false) {
@@ -207,7 +208,7 @@ function flowLine(label,amount,cls,action,dot='',sub='') {return `<button class=
 function costsNote() {
  if(view.manualOnly||!(view.income>0))return '';
  const all=view.tax+view.bank+(view.fx??0);
- return view.fx===null?`${percent(all,view.income)} доходу · FX без оцінки`:`${percent(all,view.income)} доходу · з них FX ${euro(view.fx)}`;
+ return view.fx===null?`${percent(all,view.income)} доходу · FX без оцінки`:`${percent(all,view.income)} доходу · з них FX ${euro(view.fx)} (${percent(view.fx,view.income)} доходу)`;
 }
 function spendComparison() {
  if(!Number.isSafeInteger(previous?.net)||!(previous.net>0))return '';
@@ -311,20 +312,29 @@ function tripCard(c) {
 }
 function collectionToolbar(kind) {
  const options=kind==='purchase'?[['all','Усі покупки'],['season','Святкові']]:[['all','Усі'],['trip','Поїздки'],['event','Події'],['season','Святкові']];
- return `<div class="collection-toolbar"><input class="search" id="collection-search" type="search" aria-label="Пошук записів" placeholder="Пошук…" value="${esc(collectionQuery)}"><select class="select" id="collection-filter" aria-label="Фільтр записів">${options.map(([v,l])=>`<option value="${v}" ${(seasonOnly?'season':collectionKind)===v?'selected':''}>${l}</option>`).join('')}</select></div>`;
+ return `<div class="collection-toolbar${kind==='trip'?' trip-toolbar':''}"><input class="search" id="collection-search" type="search" aria-label="Пошук записів" placeholder="Пошук…" value="${esc(collectionQuery)}"><select class="select" id="collection-filter" aria-label="Фільтр записів">${options.map(([v,l])=>`<option value="${v}" ${(seasonOnly?'season':collectionKind)===v?'selected':''}>${l}</option>`).join('')}</select>${kind==='trip'?'<button type="button" class="button" data-new="trip">+ Поїздка</button>':''}</div>`;
 }
 function collectionEmpty(kind) {
  const filtered=collectionQuery||seasonOnly||collectionKind!=='all';
  return `<div class="collection-empty"><h3>${filtered?'Нічого не знайдено':kind==='purchase'?'Покупок за цей період немає':'Поїздок за цей період немає'}</h3>${filtered?'<button class="link" data-action="resetCollectionFilters">Скинути</button>':''}</div>`;
 }
-function collectionSummary(selected) {
- const total=selected.reduce((n,c)=>n+totals(c).net,0),planned=selected.filter(c=>c.budget!==null),budget=planned.reduce((n,c)=>n+c.budget,0),complete=planned.length===selected.length;
+function collectionSummary(selected,budgetCategory=null) {
+ const total=selected.reduce((n,c)=>n+totals(c).net,0);
+ if(budgetCategory){
+  const budget=view.categories.find(c=>c.category===budgetCategory)?.plan;
+  return `<section class="collection-summary"><div><span>Витрати</span><strong>${euro(total,2)}</strong></div><div><span>Бюджет категорії</span><strong><button type="button" data-budget="${esc(budgetCategory)}" aria-label="Бюджет категорії: ${esc(budgetCategory)}">${budget?euro(budget):'—'}</button></strong></div></section>`;
+ }
+ const planned=selected.filter(c=>c.budget!==null),budget=planned.reduce((n,c)=>n+c.budget,0),complete=planned.length===selected.length;
  return `<section class="collection-summary"><div><span>Власним коштом</span><strong>${euro(total,2)}</strong></div><div><span>Бюджет${planned.length&&!complete?' · '+planned.length+' із '+selected.length:''}</span><strong>${planned.length?euro(budget):'—'}</strong></div>${complete?`<div><span>${total>budget?'Понад бюджет':'Залишилось'}</span><strong class="${total>budget?'red':'green'}">${euro(Math.abs(budget-total))}</strong></div>`:''}</section>`;
 }
 function tripCollections() {
  const selected=selectedCollections('trip');
  const years=[...new Set(selected.map(c=>c.start.slice(0,4)))];
- return heading('Поїздки','<button class="button" data-new="trip">+ Поїздка</button>')+collectionToolbar('trip')+(selected.length?`${collectionSummary(selected)}${years.map(year=>`<section class="journey-year">${period==='all'||allCollections?`<div class="journey-year-heading"><h2>${year}</h2></div>`:''}<div class="journey-grid">${selected.filter(c=>c.start.startsWith(year)).map(tripCard).join('')}</div></section>`).join('')}`:collectionEmpty('trip'));
+ const groups=years.map(year=>{
+  const trips=selected.filter(c=>c.start.startsWith(year)),total=trips.reduce((sum,c)=>sum+totals(c).net,0);
+  return `<section class="journey-year">${period==='all'||allCollections?`<div class="journey-year-heading"><h2>${year}</h2><div class="journey-year-total"><span>Разом за рік</span><strong data-private>${euro(total,2)}</strong></div></div>`:''}<div class="journey-grid">${trips.map(tripCard).join('')}</div></section>`;
+ }).join('');
+ return heading('Поїздки')+collectionToolbar('trip')+collectionSummary(selected,'Відпустки та подорожі')+(selected.length?groups:collectionEmpty('trip'));
 }
 function tripView(c,tab='overview') {
  const t=totals(c),over=c.budget!==null&&t.net>c.budget,positive=t.types.reduce((n,v)=>n+Math.max(0,v.eur),0);
@@ -552,7 +562,7 @@ function showMonthly() {
  open('За місяцями',`<div class="table-wrap"><table class="data monthly-report"><thead><tr><th>Місяць</th><th>Зароблено</th><th>Витрати</th><th>Податки, комісії й FX</th><th>Залишок</th></tr></thead><tbody>${view.months.map(m=>{const current=monthSpending(m),costs=m.tax+m.bank+(m.fx??0);return `<tr><td>${m.month}</td><td data-label="Дохід">${euro(m.manualOnly?null:m.income)}</td><td data-label="Витрати">${euro(current)}</td><td data-label="Податки, комісії й FX">${euro(m.manualOnly?null:costs)}${m.fx===null&&!m.manualOnly?'<small class="subline display-block">FX без оцінки</small>':''}</td><td data-label="Залишок">${euro(m.manualOnly?null:m.income-current-costs)}</td></tr>`;}).join('')}</tbody></table></div>${view.unknown?`<p class="quiet">Нерозібрані перекази · ${euro(view.unknown)}</p>`:''}`);
 }
 function showCosts() {
- open('Податки й банк',stats([['Від доходу',percent(view.tax+view.bank,view.income)],['Сплачено',euro(view.tax+view.bank,2)]])+line('Податки',view.tax)+line('Банк',view.bank)+line('FX · оцінка',view.fx)+`<div class="line total-line"><span>З FX · від доходу</span><strong>${view.fx===null?'—':percent(view.tax+view.bank+view.fx,view.income)}</strong></div><details class="inline-detail"><summary>Розрахунок</summary><p class="quiet">База: дохід ${euro(view.income,2)} · ${esc(titlePeriod())}. FX — оцінка відхилення від офіційного курсу, не окрема комісія.</p></details><div class="table-wrap"><table class="data cost-records"><thead><tr><th>Дата</th><th>Складова</th><th>EUR</th></tr></thead><tbody>${view.costRows.map(r=>`<tr><td>${date(r.date)}</td><td>${esc(r.label)}</td><td>${euro(r.eur,2)}</td></tr>`).join('')}</tbody></table></div>`);
+ open('Податки й банк',stats([['Від доходу',percent(view.tax+view.bank,view.income)],['Сплачено',euro(view.tax+view.bank,2)]])+line('Податки',view.tax)+line('Банк',view.bank)+line(`FX · оцінка (${view.fx===null?'—':percent(view.fx,view.income)} доходу)`,view.fx)+`<div class="line total-line"><span>З FX · від доходу</span><strong>${view.fx===null?'—':percent(view.tax+view.bank+view.fx,view.income)}</strong></div><details class="inline-detail"><summary>Розрахунок</summary><p class="quiet">База: дохід ${euro(view.income,2)} · ${esc(titlePeriod())}. FX — оцінка відхилення від офіційного курсу, не окрема комісія.</p></details><div class="table-wrap"><table class="data cost-records"><thead><tr><th>Дата</th><th>Складова</th><th>EUR</th></tr></thead><tbody>${view.costRows.map(r=>`<tr><td>${date(r.date)}</td><td>${esc(r.label)}</td><td>${euro(r.eur,2)}</td></tr>`).join('')}</tbody></table></div>`);
 }
 async function showHistory() {
  const records=await api('/api/history');
