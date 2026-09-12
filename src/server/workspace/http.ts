@@ -27,7 +27,7 @@ export function createWorkspaceServer(options: {store:WorkspaceStore; centers:Pi
     || remote.origin !== options.tailscale!.origin || !options.tailscale!.login.trim())) throw new Error('TAILSCALE_CONFIG_INVALID');
   const session = randomBytes(32).toString('hex'), csrf = randomBytes(32).toString('hex');
   const assets: Record<string,{file:string;type:string}> = {
-    '/':{file:'index.html',type:'text/html'},'/app.js':{file:'app.js',type:'text/javascript'},'/navigation.js':{file:'navigation.js',type:'text/javascript'},'/style.css':{file:'style.css',type:'text/css'},
+    '/':{file:'index.html',type:'text/html'},'/app.js':{file:'app.js',type:'text/javascript'},'/navigation.js':{file:'navigation.js',type:'text/javascript'},'/privacy.js':{file:'privacy.js',type:'text/javascript'},'/style.css':{file:'style.css',type:'text/css'},
   };
   const server = createServer(async (req,res) => {
     res.setHeader('Cache-Control','no-store');

@@ -68,3 +68,22 @@ table.data.transactions td:nth-child(2),table.data.transactions td:nth-child(3),
 .navigation-controls{display:flex;gap:6px}.route-navigation{display:flex;align-items:center;gap:15px;min-width:0}.route-navigation .crumb{line-height:1.6;overflow-wrap:anywhere}.navigation-back{flex-shrink:0;min-height:38px;color:var(--green)}.navigation-back[hidden]{display:none}.drawer-head{flex-wrap:wrap;gap:10px}.drawer-head .dialog-back{color:var(--green);font-size:12px;min-height:36px;padding:5px 0}.drawer-head h2{flex:1;min-width:140px}.drawer-head .close{margin-left:auto}
 @media(max-width:700px){.route-navigation{align-items:flex-start;gap:10px;flex-direction:column}.route-navigation .crumb{font-size:10px}.topbar{align-items:flex-start}.navigation-back{font-size:11px;padding:7px 10px;min-height:38px}.drawer-head .dialog-back{font-size:11px}.drawer-head h2{font-size:17px;min-width:100px}}
 @media print{.navigation-back,.dialog-back{display:none}}
+
+/* One persistent amount-visibility control; forms keep their original values. */
+.header-inner{grid-template-columns:160px 1fr auto auto}
+.header-tools{display:flex;align-items:center;gap:4px}
+.header-tools>button{display:grid;place-items:center;width:40px;height:40px;border-radius:8px;color:var(--muted);flex:none}
+.header-tools>button:hover{background:var(--soft);color:var(--green)}
+.privacy-button{display:grid;place-items:center;width:40px;height:40px;border-radius:8px;color:var(--muted);flex:none}
+.privacy-button:hover{background:var(--soft);color:var(--green)}
+.privacy-button[aria-pressed=true]{color:var(--green);background:var(--soft)}
+.privacy-button .eye-slash{display:none}
+.privacy-button[aria-pressed=true] .eye-slash{display:block;stroke:var(--green);stroke-width:2.5}
+.privacy-field{position:relative;display:block;min-width:0;width:100%;flex:1}
+.privacy-mask{display:none;position:absolute;inset:0;align-items:center;padding:12px 14px;font:inherit;letter-spacing:2px;pointer-events:none}
+.amounts-hidden .privacy-field>[data-private]{visibility:hidden}
+.amounts-hidden .privacy-mask{display:flex}
+.cash-amount-field .privacy-mask{font-size:48px;line-height:1.2;padding:0;color:var(--ink)}
+@media(max-width:1000px){.header-inner{grid-template-columns:1fr auto auto}.header-tools{grid-row:1;grid-column:3}.header-tools>button{grid-area:auto}}
+@media(max-width:700px){.header-inner{gap:8px}.header-tools{gap:0}.header-tools>button{width:36px;height:40px}.cash-amount-field .privacy-mask{font-size:44px}}
+@media(max-width:370px){.header-inner{padding-inline:12px;column-gap:6px}.header-tools>button{width:32px}.app-header .brand{font-size:18px}.brand-logo{width:26px;height:26px}.add-expense{padding-inline:8px}}
