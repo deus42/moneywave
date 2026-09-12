@@ -231,6 +231,10 @@ One timestamped provider NAV per wallet contributes once. Token/staking breakdow
 - **Transport:** the stable Node 24 service still binds only to loopback. Explicit paired `MONEYWAVE_TAILSCALE_ORIGIN` and `MONEYWAVE_TAILSCALE_LOGIN` settings enable one exact HTTPS origin and owner login. This mode rejects local Host bypasses, requires Serve's owner identity on every request and retains Origin/session/CSRF checks with a Secure `__Host-` cookie. Forwarded host/protocol headers are not authority. The default unconfigured CLI remains localhost-only.
 - **Operation:** a launchd user service runs a versioned local code/dependency snapshot using the existing encrypted data directory. Workspace edits take effect only after an explicit stable release update. Login/unlocked Keychain and an awake, online Mac are operational prerequisites. Stop only this Serve port and launchd label to roll back; other apps remain untouched.
 
+### Container stage update — 2026-09-12
+
+The requester authorized a stable Exmachina container, ongoing stage updates after completed application changes, and shared data with the local website. This supersedes the native-release operation above. The Node 24 application runs in an immutable local Docker image on Colima, with loopback publishing and the existing owner-only Tailscale origin. The database stays outside the image and is neither copied over nor migrated during deployment. A synthetic check demonstrated that direct macOS/Linux file sharing does not preserve SQLite locks. The database therefore remains open only through native macOS connections; the container uses an unlogged Docker attach query channel to a host broker. The key never enters the container. Synthetic channel/transaction checks, a verified encrypted backup, compatible schema and unchanged real-data checks gate cutover. The host launchd supervisor reconnects the channel after container restart. The old native job is disabled and retained for recovery. See [the staging runbook](staging.md); no public access, registry push or financial-data rewrite is authorized.
+
 ## MW-033: Confirmed categories survive reprocessing
 
 - **Date:** 2026-09-11
@@ -238,3 +242,17 @@ One timestamped provider NAV per wallet contributes once. Token/staking breakdow
 - **Decision:** One versioned [category policy](category-rules.md) governs deterministic merchant rules, canonical category consolidation and explicit report refresh. Existing encrypted `categorization_rules` stores exact confirmed entry decisions; the optional workspace adapter synchronizes current decisions before processing. No schema migration or new service boundary is needed.
 - **Preservation:** manual assignments, workspace corrections, budget versions, aliases and trip membership survive. Confirmed FX exclusions are identity-specific and create no matching leg or balance. No amount-only inference is permitted. Source evidence remains immutable and previous derived assignments remain auditable.
 - **Verification:** synthetic regressions and isolated encrypted preparation/classification replay with AI disabled, followed by a verified-backup rule installation and readback. Full imports, movement discovery, external calls and a stable release update are separate operations.
+
+
+## MW-034: Capital follows the shared period with explicit monthly crypto evidence
+
+- **Date:** 2026-09-12
+- **Authorization:** the requester asked for period-specific capital, comparison to their monthly Savings source, Ethereum ownership from a specified month, and first-of-month NEAR prices in USDT and EUR.
+- **Decision:** supersede MW-031's presentation separation: capital and details use the selected cutoff. Saved explorer NAV remains immutable. Historical reconstruction uses separately confirmed constant quantities and captured first-of-month Binance public quotes, including EUR/USDT. Unpriced components and unavailable source history remain explicit.
+- **Boundary:** operator capture only, public symbols/date bounds only, no credentials or wallet/bank data sent to price providers. Store evidence in ignored local files and the encrypted report. No automatic synchronization, trading integration or new database schema is authorized. Release follows the separate repository staging policy.
+
+## MW-035: Savings compared with the income remainder
+- **Status:** requested 2026-09-12
+- **Decision:** The overview shows taxes, bank costs and the FX estimate as one amount, and the income remainder is shown after that FX estimate so the displayed lines add up. A read-only savings projection compares balances of the workspace savings accounts (foreign personal accounts and cash; not PrivatBank, monobank or FOP) on the day before the period and at each month end. Each account change is split into money that stayed and EUR revaluation; unknown balances stay unknown, never zero.
+- **Explanation:** remainder after FX − change on the excluded accounts − transfers without an established purpose = expected savings. Actual savings and the unexplained difference are shown separately and are never labelled as spending or fees. Crypto is excluded until historical balances exist.
+- **Boundary:** no schema, import, matching or correction changes; page reads use only the existing capital read model.

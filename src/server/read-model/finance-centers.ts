@@ -91,11 +91,14 @@ export interface CapitalHistoryPoint {
   manualCount: number;
 }
 
+/** Explicit cash facts supplied by a caller, independent of website storage. */
+export interface CashOutflow {accountId:string;currency:string;date:string;amountMinor:number}
+
 /** Read-only projections. No import, categorization, FX request or correction on a page read. */
 export class FinanceCenters {
   constructor(private readonly database: EncryptedDatabase, private readonly now = () => new Date()) {}
 
-  async capital(requestedDate: string | undefined, currency: ReportCurrency, includePosition?: (position: CapitalPosition) => boolean): Promise<CapitalView> {
+  async capital(requestedDate: string | undefined, currency: ReportCurrency, includePosition?: (position: CapitalPosition) => boolean, cashOutflows:readonly CashOutflow[]=[]): Promise<CapitalView> {
     const asOf = isoDay(requestedDate, this.now().toISOString().slice(0, 10));
     const accounts = await this.database.all<Pick<CapitalPosition, "id" | "name" | "provider" | "providerCode" | "scope" | "type" | "currency">>(`
       SELECT account.id, account.display_name AS name, provider.display_name AS provider,
@@ -124,6 +127,8 @@ export class FinanceCenters {
     `, [currency, asOf, asOf]);
     const positions: CapitalPosition[] = [];
     for (const account of accounts) {
+      const expenses=cashOutflows.filter(e=>e.accountId===account.id&&e.currency===account.currency&&e.date<=asOf);
+      const spent=(from:string,to:string,inclusive=true)=>expenses.filter(e=>(inclusive?e.date>=from:e.date>from)&&e.date<=to).reduce((sum,e)=>sum+BigInt(e.amountMinor),0n);
       const position: CapitalPosition = { ...account, nativeMinor: null, reportMinor: null, observedAt: null,
         source: null, status: "missing_balance", carriedForward: false, rate: null, rateSource: null,
         publicationDate: null, rateStale: false, accountId: account.type === "manual" ? null : account.id,
@@ -139,7 +144,7 @@ export class FinanceCenters {
             WHERE account_id = ? AND currency = ? AND substr(occurred_at, 1, 10) BETWEEN ? AND ?
             ORDER BY occurred_at, id
           `, [account.id, account.currency, opening.date, asOf]);
-          position.nativeMinor = movements.reduce((sum, row) => sum + BigInt(row.amount), BigInt(opening.amount)).toString();
+          position.nativeMinor = (movements.reduce((sum, row) => sum + BigInt(row.amount), BigInt(opening.amount))-spent(opening.date,asOf)).toString();
           position.observedAt = movements.at(-1)?.occurredAt ?? opening.date;
           position.source = "calculated_cash";
           position.status = BigInt(position.nativeMinor) < 0n ? "conflict" : "known";
@@ -179,7 +184,7 @@ export class FinanceCenters {
               const recorded = await this.database.all<{ amount: string }>(`
                 SELECT CAST(amount_minor AS TEXT) AS amount FROM ledger_entries WHERE account_id = ? AND currency = ?
                 AND substr(occurred_at,1,10) BETWEEN ? AND ?`, [account.id, account.currency, opening.date, boundary]);
-              const calculated = recorded.reduce((sum, row) => sum + BigInt(row.amount), BigInt(opening.amount));
+              const calculated = recorded.reduce((sum, row) => sum + BigInt(row.amount), BigInt(opening.amount))-spent(opening.date,boundary);
               manualEvidence.differenceMinor = (BigInt(manualEvidence.amountMinor) - calculated).toString();
               manualEvidence.comparison = "cash_record_gap";
             }
@@ -193,7 +198,7 @@ export class FinanceCenters {
             const later = await this.database.all<{ amount: string }>(`
               SELECT CAST(amount_minor AS TEXT) AS amount FROM ledger_entries WHERE account_id = ? AND currency = ?
               AND substr(occurred_at,1,10) > ? AND substr(occurred_at,1,10) <= ?`, [account.id, account.currency, boundary, asOf]);
-            position.nativeMinor = later.reduce((sum, row) => sum + BigInt(row.amount), BigInt(position.nativeMinor)).toString();
+            position.nativeMinor = (later.reduce((sum, row) => sum + BigInt(row.amount), BigInt(position.nativeMinor))-spent(boundary,asOf,false)).toString();
             if (BigInt(position.nativeMinor) < 0n) position.status = "conflict";
           }
         }
@@ -224,17 +229,17 @@ export class FinanceCenters {
       unvaluedCount: positions.length - known.length, carriedForwardCount: positions.filter((p) => p.carriedForward).length };
   }
 
-  async capitalHistory(requestedDate: string | undefined, currency: ReportCurrency, includePosition?: (position: CapitalPosition) => boolean): Promise<CapitalHistoryPoint[]> {
+  async capitalHistory(requestedDate: string | undefined, currency: ReportCurrency, includePosition?: (position: CapitalPosition) => boolean, cashOutflows:readonly CashOutflow[]=[]): Promise<CapitalHistoryPoint[]> {
     const asOf = isoDay(requestedDate, this.now().toISOString().slice(0, 10));
     const rows = await this.database.all<{ period: string }>(`
       SELECT period FROM manual_position_facts
       UNION SELECT substr(observed_at,1,7) FROM balance_snapshots
       UNION SELECT substr(opening_date,1,7) FROM cash_opening_balances ORDER BY period`);
     const start = shiftMonth(asOf.slice(0, 7), -23);
-    const periods = rows.filter(({ period }) => /^\d{4}-(0[1-9]|1[0-2])$/u.test(period) && period >= start && period <= asOf.slice(0, 7) && monthEnd(period) <= asOf);
+    const periods = [...new Set([...rows.map(r=>r.period),...cashOutflows.map(e=>e.date.slice(0,7))])].sort().map(period=>({period})).filter(({ period }) => /^\d{4}-(0[1-9]|1[0-2])$/u.test(period) && period >= start && period <= asOf.slice(0, 7) && monthEnd(period) <= asOf);
     const history: CapitalHistoryPoint[] = [];
     for (const { period } of periods) {
-      const view = await this.capital(monthEnd(period), currency, includePosition);
+      const view = await this.capital(monthEnd(period), currency, includePosition,cashOutflows);
       history.push({ asOf: view.asOf, knownMinor: view.knownNetMinor, valuedCount: view.positions.length - view.unvaluedCount,
         missingCount: view.unvaluedCount, manualCount: view.positions.filter((p) => p.source === "manual_document" || p.source === "manual_cash").length });
     }

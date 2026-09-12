@@ -18,7 +18,7 @@ MoneyWave is a local TypeScript financial workspace on pinned Node 24 and pnpm. 
 - Vault-Tec receives metadata and durable technical decisions only.
 - External services remain opt-in and narrowly bounded. Accepted v1 flows are read-only bank synchronization, public ECB/NBU rates without transaction payloads, and explicitly authorized OpenAI categorization through the local Codex runtime. Direct application fetches to OpenAI remain blocked; Codex owns its authentication and upstream transport.
 - Source statements and imports remain immutable evidence; normalized and derived data must remain distinguishable from them.
-- MW-031 permits explicit captured public NEAR/Ethereum wallet observations. `crypto_observations` stores immutable per-wallet NAV and breakdowns with source hashes. A separate current-capital projection adds each eligible NAV once using dated cached official FX. Period-end reads exclude later observations; website reads remain offline. This does not implement wallet signing, transaction ingestion or automatic explorer synchronization.
+- MW-031 permits explicit captured public NEAR/Ethereum wallet observations. `crypto_observations` stores immutable per-wallet NAV and breakdowns with source hashes. A separate current-capital projection adds each eligible NAV once using dated cached official FX. The UI selects the dated capital projection from the shared reporting period; current capital remains available separately for current-balance entry hints. Period-end API reads still exclude later observations; website reads remain offline. This does not implement wallet signing, transaction ingestion or automatic explorer synchronization.
 
 ## System Boundaries
 
@@ -110,4 +110,37 @@ The explicit site request and approved design supersede the earlier processing-o
 
 ## Confirmed category policy — 2026-09-11
 
+Operation corrections store an optional explicit type in the existing revisioned workspace overlay. Cash currency purchases are excluded from expense, budget and collection totals, retain their original category for reversal, and become exact confirmed FX rules during explicit processing. This classification alone creates no cash ledger leg, received amount, rate or balance. Legacy category/exclusion corrections remain readable; save, refresh and undo preserve the typed correction. The editor displays the native debit prominently and omits internal source aliases and row numbers.
+
 `src/domain/category-policy.ts` is the shared code/group/merchant policy. `CategoryPolicyService` consumes exact decisions from the existing encrypted `categorization_rules` table and appends versioned derived assignments, preserving manual decisions. The optional `saveWorkspaceCategoryRules` adapter synchronizes current report decisions before `refreshDerivedState`; the processing core itself does not depend on an initialized workspace. Preparation protects exact confirmed currency exclusions from being reset into spending. Report import normalizes category groups and merged budget baselines while retaining revisioned edits and source provenance. No data migration is required. See [the complete rules and precedence](category-rules.md) and MW-033.
+
+## Trip evidence and reporting version two
+
+The workspace reader supports report versions one and two. Version two records original purchase EUR separately from settlement EUR, linked statement evidence, spending types, multiple manual payments, other payers and deposits. The protected workspace response provides effective rows and collection totals; the screen and print views consume those same calculations. Purchases retain their existing settlement valuation. A rate-benchmark difference is never added as a confirmed fee.
+
+Month-precision manual payments keep their month without an invented day. Complete months include them in cashflow; partial date comparisons suppress exact totals when allocation is unknown. Historical trip-only rows and payments do not extend income/tax coverage. Trip filters follow the travel period; monthly expenses follow the payment date. Other payers and holds remain context, and a worksheet item linked to a bank row contributes only the bank row.
+
+An operator reconciliation atomically installs a reviewed report and overlay with a revision guard, preserved source snapshots and validated references. It has no HTTP import endpoint and must be preceded by a verified backup and followed by canonical-data and capital readback. Version-two data must not be activated under the old stable reader. Prepare and verify it in an encrypted local candidate database; stable activation remains a separate MW-032 release. No source statements, bank records, balances or position observations are rewritten.
+
+## Daily cash expenses
+
+The global expense form records explicit personal cash payments separately from bank evidence. Native minor units, account identity, date, category and a dated EUR valuation live in the encrypted revisioned workspace overlay. Only existing personal EUR/USD/UAH cash accounts are selectable. The server rejects future dates, dates before an asserted opening and unavailable official rates; non-EUR valuation uses cached ECB/NBU evidence published/requested on or before the payment date, at most seven days old. Description/category edits retain the original valuation. No external rate request, ledger import or movement inference occurs on save.
+
+`cashExpense` and `deleteCashExpense` actions in the existing append-only workspace history retain the authoritative cash list, including an immediate undo. The reader hydrates it from that journal at the selected revision so an older released reader that strips unfamiliar overlay fields cannot erase cash facts during an unrelated edit. No schema migration is needed. The old released interface still lacks the new cash projection; use the current local interface until a separately authorized stable release.
+
+Each explicit cash expense contributes once to its dated expense/category totals. Manual-only months extend the report without inventing statement coverage or income. The independent capital reader accepts explicit native cash outflows: opening-based cash subtracts dated expenses; a later monthly observed balance absorbs earlier expenses, and only later payments reduce that observation. Earlier payments still explain the recorded-cash gap. Current capital, period-end capital and history use the same inputs. Unknown cash remains unknown; negative calculated cash is a conflict, never debt. Editing, deletion, refresh and undo retain immutable bank/source evidence.
+
+## Shared reporting period
+
+The local report accepts full history, calendar year/month and `last12`. The rolling preset selects the current calendar month and eleven prior months using the server clock. The response carries requested and available ranges so every flow, budget, cost, collection and transaction surface uses the same boundary. Missing months remain partial; empty rolling windows have no available range. Monthly budgets and undated monthly refunds retain their existing month precision. Capital uses the requested period end, bounded by today, independently of transaction coverage. All-history and rolling views use today. Neither period navigation nor the rolling selector writes financial history.
+
+
+## Monthly capital valuation evidence
+
+An optional `cryptoHistory` field in the immutable encrypted report stores captured public monthly opening quotes and explicit constant-quantity holding confirmations. It does not alter bank records or explorer observations and requires no schema migration. The operator validates local evidence hashes, exact UTC month-open timestamps and prices, source wallet readback, a recoverable backup and revision-guarded installation. Its dedicated installation path preserves all other report fields and overlay bytes. Public price requests contain only symbols and date bounds; website reads remain offline.
+
+NEAR/USDT and ETH/USDT values divide by the simultaneous EUR/USDT opening quote, with decimal arithmetic and one final rounding for each wallet total. USDT holdings use that same cross-rate directly; no USD parity assumption is used. Ownership dates retain month precision. A saved observed NAV replaces a reconstruction once it is eligible. Missing prices do not carry from another month, and unknown LP/token components remain unvalued. Capital history adds each eligible wallet once, using the same selection as the period card. Quantity confirmation is separate from the user's statement that a wallet existed throughout a period.
+
+## Cash management screen
+
+The Cash section owns everyday expense creation and presents current cash positions, period-filtered expenses and monthly source observations. The global header action is removed. `cashHistory` reads immutable cash facts and cell provenance through the protected workspace API; it groups repeated evidence by account and month, preserves exact minor-unit strings, excludes incomplete/future months and leaves conflicting values unresolved. It never fills missing months or creates movements from balance changes. Existing cash expense writes, date-aware capital calculations and revision history remain the only mutation path.

@@ -15,6 +15,7 @@
 - Work on `main` unless the requester explicitly asks for a different branch strategy.
 - Do not create hidden branches, worktrees, remotes, or external project copies unless the requester explicitly asks for them.
 - Do not stage, commit, push, publish, or deploy unless the requester explicitly asks.
+- Standing staging authorization (2026-09-12): after completing and verifying MoneyWave application changes, update the private Exmachina container stage with `pnpm stage:deploy` unless the requester explicitly says not to deploy. Do not ask for the same staging permission again. This does not authorize Git commits, pushes, public hosting or financial data changes.
 - Keep all product code, documentation, and financial storage local unless a specific external boundary is explicitly approved. The only AI exception currently approved is the narrowly redacted Codex-subscription categorization flow described below.
 
 ## Commit Identity Hygiene
@@ -79,6 +80,7 @@
 
 - Install: `pnpm install` under Node 24.
 - Local website: `pnpm start` (loopback only); explicit report initialization: `pnpm workspace:seed <ignored-local-report.json>`. Browser acceptance uses real reads and isolated synthetic writes.
+- Private stage: `pnpm stage:deploy`; check `pnpm stage:status`; previous image rollback: `pnpm stage:rollback`. Use Node 24. The stage is `https://exmachina.tail3a0b66.ts.net:9443/`, container `moneywave-stage`, Docker context `colima`, supervised by launchd `local.moneywave.stage`. See `docs/staging.md`.
 - Test: `pnpm test`.
 - Full verification: `pnpm verify` (lint, typecheck, synthetic unit/integration tests and security checks).
 - Safe ignored-data acceptance: `pnpm verify:real-data` (opt-in; safe result codes only).
@@ -90,6 +92,17 @@
 - Sensitive-path check: `git check-ignore -v <path>`.
 
 ## Operational Contracts
+
+### Exmachina stage completion
+
+- Serve the actual application from an immutable local container image. Working-tree edits do not update it until the deployment command succeeds.
+- The stage and local website share the existing SQLCipher database, as explicitly requested. Never seed, replace, copy over or migrate it as part of a release. Require a verified backup, supported schema, synthetic host/container transaction checks and unchanged real-data readback. Never mount the database into Colima: cross-OS SQLite locks failed acceptance. Keep database connections on macOS and use the existing local query broker.
+- Keep the key in macOS Keychain. The host supervisor opens SQLCipher natively; the container uses an unlogged Docker attach pipe for queries/results. The key never enters the container. Never put key bytes in image layers, files, environment variables, arguments or logs. Keep Docker logging disabled for the query channel.
+- Preserve owner-only Tailscale HTTPS, loopback host port 43822 and unrelated Serve mappings. No Funnel, public port, registry push, telemetry or external service calls from the container. Keep bridge IP masquerading and inter-container communication disabled. The source preview remains on 43821.
+- Before reporting completion, check stage health, deployed asset versions, real browser interactions and recovery after container restart. Keep the previous image for rollback. Report a failed stage update explicitly; local tests alone do not prove deployment.
+
+
+### Data and mutation boundaries
 
 - `READ`: inspect documentation freely; inspect financial files only when the current ask requires them and avoid echoing their contents unnecessarily.
 - `WRITE`: keep edits scoped, preserve original imports, and write derived artifacts separately from source data.

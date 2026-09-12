@@ -16,7 +16,7 @@ export async function saveWorkspaceCategoryRules(db:EncryptedDatabase):Promise<{
   for(const row of effectiveRows(report,workspace.state)){
     if(!ledgerIds.has(row.id))continue;
     const override=workspace.state.overrides[row.id];
-    const confirmedFx=override?.excluded===true&&override.category==='Купівля валюти';
+    const confirmedFx=override?.excluded===true&&(override.operationType==='cash_fx'||override.operationType==='fx'||(!override.operationType&&override.category==='Купівля валюти'));
     let categoryCode=confirmedFx?'transfers':categoryCodeForGroup(row.group);
     let displayName:string|undefined;
     if(!categoryCode&&override&&!row.excluded){

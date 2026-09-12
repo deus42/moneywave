@@ -9,6 +9,7 @@ import { WorkspaceStore } from '@/server/workspace/store';
 import { changeState, collectionTotals, comparisonFor, effectiveRows, initialState, reportSchema, stateSchema, summary } from '@/server/workspace/model';
 import { createWorkspaceServer } from '@/server/workspace/http';
 import { FinanceCenters } from '@/server/read-model/finance-centers';
+import { CryptoStore } from '@/server/workspace/crypto';
 
 const fixture = () => reportSchema.parse({version:1,coverage:{start:'2090-01-01',end:'2090-02-28',generatedAt:'2090-03-01'},ledgerDigest:'synthetic',sources:[],
  rows:[
@@ -53,7 +54,7 @@ describe('workspace financial projection',()=>{
   state=changeState(report,state,{action:'collection',revision:0,collection:{id:'book',kind:'purchase',name:'Synthetic item',start:'2090-01-12',end:'2090-01-12',budget:9000,note:'',rowIds:['synthetic-book','synthetic-refund'],season:false,referenceAmount:null,manualPayment:null}});
   state=changeState(report,state,{action:'collection',revision:0,collection:{id:'trip',kind:'trip',name:'Synthetic trip',start:'2090-01-10',end:'2090-01-20',budget:12000,note:'',rowIds:['synthetic-book','synthetic-refund'],season:false,referenceAmount:null,manualPayment:null}});
   expect(summary(report,state,'2090').net).toBe(11800);
-  expect(collectionTotals(state.collections[0],effectiveRows(report,state))).toEqual({paid:10000,recovered:3000,net:7000,count:2});
+  expect(collectionTotals(state.collections[0],effectiveRows(report,state))).toMatchObject({paid:10000,recovered:3000,net:7000,count:2});
   expect(()=>changeState(report,state,{action:'collection',revision:0,collection:{...state.collections[1],id:'other-trip'}})).toThrow('LINK_ALREADY_ASSIGNED');
  });
  it('changes only a selected category and its linked recovery, with immutable originals',()=>{
@@ -84,7 +85,7 @@ describe('workspace financial projection',()=>{
   expect(summary(report,linked,'2090').net).toBe(11800);
  });
  it('compares the same partial-month dates and does not compare an incomplete prior year',()=>{
-  const report=fixture(),state=initialState(report);
+  const report=fixture(),state=initialState(report);report.months[1].grossSpending=report.months[1].netSpending;
   const comparison=comparisonFor(report,state,'2090-02','2090-02-08');expect(comparison?.from).toBe('2090-01-01');expect(comparison?.to).toBe('2090-01-08');
   expect(comparisonFor(report,state,'2090-02','2090-02-28')?.to).toBe('2090-01-31');
   expect(comparisonFor(report,state,'2090','2090-02-28')).toBeNull();
@@ -135,8 +136,29 @@ describe('encrypted workspace and protected HTTP',()=>{
   const invalid=fixture();invalid.rows=[];invalid.months=[];
   await expect(store.seed(invalid,true)).rejects.toThrow('REFRESH_WOULD_ORPHAN_EDITS');
  });
- it('checks Host, Origin, session, CSRF and size; uses the last stock date for a year',async()=>{
-  let asOf='';const server=createWorkspaceServer({store,sourceCurrent:true,staticDirectory:resolve('src/web'),centers:{capital:async date=>{asOf=date??'';return {asOf,currency:'EUR',positions:[],knownAssetsMinor:'0',knownLiabilitiesMinor:'0',knownNetMinor:'0',completeNetWorthMinor:null,unvaluedCount:0,carriedForwardCount:0};},capitalHistory:async()=>[]}});
+ it('atomically installs a reviewed v2 report and preserves subsequent edits and undo',async()=>{
+  await store.mutate({action:'row',revision:0,id:'synthetic-book',category:'Equipment',name:'SYNTHETIC retained title',note:'SYNTHETIC note',excluded:false});
+  const current=await store.read(),report=fixture();report.version=2;
+  await expect(store.reconcile(report,current.state,0)).rejects.toThrow('REVISION_CONFLICT');
+  expect((await store.read()).revision).toBe(1);
+  const result=await store.reconcile(report,current.state,1);
+  expect(result.revision).toBe(2);
+  expect((await store.read()).report.version).toBe(2);
+  expect((await store.read()).state.overrides).toEqual(current.state.overrides);
+  expect((await store.reconcile(report,(await store.read()).state,2)).inserted).toBe(false);
+  const syntheticTrip={id:'synthetic-paid-trip',kind:'trip',name:'SYNTHETIC cash trip',start:'2090-02-01',end:'2090-02-02',budget:7000,rowIds:[],payments:[{id:'synthetic-cash',date:'2090-02',eur:1100,description:'SYNTHETIC month-only cash'}]};
+  const dated=new WorkspaceStore(db,()=>new Date('2090-03-01'));
+  await dated.mutate({action:'collection',revision:2,collection:syntheticTrip});
+  expect(summary((await dated.read()).report,(await dated.read()).state,'2090-02').net).toBe(2900);
+  await dated.mutate({action:'undo',revision:3});
+  expect((await dated.read()).state).toEqual(current.state);
+  const invalid=fixture();invalid.version=2;invalid.rows=invalid.rows.slice(1);invalid.months[0].grossSpending=0;
+  await expect(dated.reconcile(invalid,current.state,4)).rejects.toThrow('REFRESH_WOULD_ORPHAN_EDITS');
+  expect((await dated.read()).revision).toBe(4);
+  expect((await db.get<{n:number}>('SELECT count(*) AS n FROM ledger_entries'))?.n).toBe(0);
+ });
+ it('checks Host, Origin, session, CSRF and size; uses the requested year cutoff bounded by today',async()=>{
+  let asOf='';const server=createWorkspaceServer({store,sourceCurrent:true,now:()=>new Date('2090-03-05T12:00:00Z'),staticDirectory:resolve('src/web'),centers:{capital:async date=>{asOf=date??'';return {asOf,currency:'EUR',positions:[],knownAssetsMinor:'0',knownLiabilitiesMinor:'0',knownNetMinor:'0',completeNetWorthMinor:null,unvaluedCount:0,carriedForwardCount:0};},capitalHistory:async()=>[]}});
   await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));const address=server.address();if(!address||typeof address==='string')throw new Error('NO_ADDRESS');const origin=`http://127.0.0.1:${address.port}`;
   try{
    expect((await fetch(origin+'/api/workspace')).status).toBe(401);
@@ -145,6 +167,11 @@ describe('encrypted workspace and protected HTTP',()=>{
    expect(badHost).toBe(403);
    expect((await fetch(origin,{headers:{Origin:'https://evil.invalid'}})).status).toBe(403);
    const landing=await fetch(origin);const cookie=landing.headers.get('set-cookie')!.split(';')[0];expect(landing.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+   expect(landing.headers.get('content-type')).toBe('text/html; charset=utf-8');
+   const logo=await fetch(origin+'/moneywave-mark.png');expect(logo.status).toBe(200);expect(logo.headers.get('content-type')).toBe('image/png');
+   expect(Buffer.from(await logo.arrayBuffer()).subarray(0,8).toString('hex')).toBe('89504e470d0a1a0a');
+   expect((await fetch(origin+'/moneywave-mark.png',{headers:{Origin:'https://evil.invalid'}})).status).toBe(403);
+   expect((await fetch(origin+'/unknown.png',{headers:{Cookie:cookie}})).status).toBe(404);
    const data=await (await fetch(origin+'/api/workspace',{headers:{Cookie:cookie}})).json();
    const yearComparison=await(await fetch(origin+'/api/annual-comparison?mode=calendar&year=2090',{headers:{Cookie:cookie}})).json();
    expect(yearComparison.current.net).toBe(11800);expect(yearComparison.previous.net).toBeNull();expect(yearComparison.delta).toBeNull();
@@ -154,8 +181,56 @@ describe('encrypted workspace and protected HTTP',()=>{
    const headers={Cookie:cookie,'Content-Type':'application/json',Origin:origin,'X-Moneywave-Csrf':data.csrf};
    expect((await fetch(origin+'/api/change',{method:'POST',headers,body:JSON.stringify(change)})).status).toBe(200);
    expect((await fetch(origin+'/api/change',{method:'POST',headers,body:' '.repeat(128001)})).status).toBe(400);
-   const annual=await(await fetch(origin+'/api/period?period=2090',{headers:{Cookie:cookie}})).json();expect(annual.net).toBe(11800);expect(annual.capital.asOf).toBe('2090-02-28');
+   const annual=await(await fetch(origin+'/api/period?period=2090',{headers:{Cookie:cookie}})).json();expect(annual.net).toBe(11800);expect(annual.capital.asOf).toBe('2090-03-05');
+   const all=await(await fetch(origin+'/api/period?period=all',{headers:{Cookie:cookie}})).json();
+   expect(all.net).toBe(annual.net);expect(all.comparison).toBeNull();expect(all.capital.asOf).toBe('2090-03-05');expect(all.capital).toEqual(all.currentCapital);
    expect((await fetch(origin+'/data/runtime/test.db',{headers:{Cookie:cookie}})).status).toBe(404);
+  }finally{await new Promise<void>(done=>server.close(()=>done()));}
+ });
+ it('uses the same reconstructed crypto total in period capital and monthly history',async()=>{
+  const now=()=>new Date('2090-03-05'),crypto=new CryptoStore(db,now);
+  await db.run("INSERT INTO providers(id,code,display_name) VALUES ('synthetic-history','synthetic-history','SYNTHETIC')");
+  await db.run("INSERT INTO accounts(id,provider_id,owner_scope,account_type,currency,display_name) VALUES ('synthetic-history','synthetic-history','PERSONAL','cash','EUR','SYNTHETIC')");
+  await db.run("INSERT INTO cash_opening_balances(account_id,opening_date,balance_minor,currency,evidence_kind) VALUES ('synthetic-history','2090-02-01',10000,'EUR','user_asserted')");
+  const observation={chain:'near',account:'synthetic.near',source:'Pikespeak',sourceUrl:'https://pikespeak.ai/account/synthetic.near',observedAt:'2090-03-01T10:00:00.000Z',usdMinor:12500,evidenceSha256:'a'.repeat(64),parts:[{label:'SYNTHETIC NEAR',quantity:'125',usdMinor:12500}],note:''};
+  await crypto.save(observation);
+  const price=(pair:string,open:string)=>({month:'2090-02',pair,open,sourceUrl:`https://data-api.binance.vision/api/v3/klines?symbol=${pair}&interval=1M`,evidenceSha256:'b'.repeat(64),capturedAt:'2090-03-05T00:00:00.000Z'});
+  await store.installCryptoHistory({holdings:[{observation,fromMonth:'2090-02',confirmedAt:'2090-03-05T00:00:00.000Z',quantityBasis:'user_confirmed_constant',assets:['NEAR']}],prices:[price('NEARUSDT','2'),price('EURUSDT','1.25')]},0);
+  const server=createWorkspaceServer({store,sourceCurrent:true,now,staticDirectory:resolve('src/web'),centers:new FinanceCenters(db,now),crypto});
+  await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));const address=server.address();if(!address||typeof address==='string')throw new Error('NO_ADDRESS');const origin=`http://127.0.0.1:${address.port}`;
+  try{
+   const landing=await fetch(origin),Cookie=landing.headers.get('set-cookie')!.split(';')[0];
+   const period=await(await fetch(origin+'/api/period?period=2090-02',{headers:{Cookie}})).json();
+   const history=await(await fetch(origin+'/api/capital-history',{headers:{Cookie}})).json();
+   expect(period.capital).toMatchObject({asOf:'2090-02-28',bankNetMinor:'10000',cryptoMinor:'20000',knownNetMinor:'30000'});
+   expect(history.find((p:{asOf:string})=>p.asOf==='2090-02-28')).toMatchObject({bankMinor:'10000',cryptoMinor:'20000',knownMinor:period.capital.knownNetMinor});
+   expect((await store.read()).revision).toBe(1);
+  }finally{await new Promise<void>(done=>server.close(()=>done()));}
+ });
+ it('serves current crypto with every reporting period and anchors the rolling range to the clock',async()=>{
+  let today='2090-03-05';const now=()=>new Date(today+'T12:00:00Z'),crypto=new CryptoStore(db,now);
+  await db.run("INSERT INTO fx_rate_cache(base_currency,quote_currency,requested_date,rate_text,source,publication_date) VALUES ('USD','EUR','2090-03-01','0.8','ECB','2090-03-01')");
+  await crypto.save({chain:'near',account:'synthetic.near',source:'Pikespeak',sourceUrl:'https://pikespeak.ai/account/synthetic.near',observedAt:'2090-03-01T10:00:00.000Z',usdMinor:12500,evidenceSha256:'a'.repeat(64),parts:[{label:'SYNTHETIC NAV',quantity:'125',usdMinor:12500}]});
+  const server=createWorkspaceServer({store,sourceCurrent:true,now,staticDirectory:resolve('src/web'),centers:new FinanceCenters(db,now),crypto});
+  await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));const address=server.address();if(!address||typeof address==='string')throw new Error('NO_ADDRESS');const origin=`http://127.0.0.1:${address.port}`;
+  try{
+   const landing=await fetch(origin),Cookie=landing.headers.get('set-cookie')!.split(';')[0];
+   for(const period of ['2090-01','2090','all','last12']){
+    const response=await fetch(origin+`/api/period?period=${period}`,{headers:{Cookie}});expect(response.status).toBe(200);
+    const view=await response.json();
+    expect(view.currentCapital).toMatchObject({asOf:today,cryptoMinor:'10000',knownNetMinor:'10000'});
+    expect(view.currentCapital.crypto).toHaveLength(1);expect(view.currentCapital.crypto[0].observedAt).toBe('2090-03-01T10:00:00.000Z');
+    if(period==='2090-01')expect(view.capital.crypto).toEqual([]);else expect(view.capital).toEqual(view.currentCapital);
+    if(period==='last12'){
+     expect(view).toMatchObject({range:{from:'2089-04-01',to:'2090-03-31'},availableRange:{from:'2090-01-01',to:'2090-02-28'},net:11800,partial:true,comparison:null});
+     expect(view.months).toHaveLength(2);
+    }
+   }
+   today='2092-03-05';
+   const empty=await(await fetch(origin+'/api/period?period=last12',{headers:{Cookie}})).json();
+   expect(empty.months).toEqual([]);expect(empty.availableRange).toBeNull();expect(empty.currentCapital.crypto).toHaveLength(1);
+   expect((await db.get<{n:number}>('SELECT count(*) n FROM crypto_observations'))?.n).toBe(1);
+   expect((await store.read()).revision).toBe(0);
   }finally{await new Promise<void>(done=>server.close(()=>done()));}
  });
  it('protects the explicit Tailscale origin with owner identity, Secure cookies and CSRF',async()=>{
@@ -173,6 +248,8 @@ describe('encrypted workspace and protected HTTP',()=>{
   const identity={Host:new URL(remote).host,'Tailscale-User-Login':login};
   try{
    expect((await call('/',{Host:identity.Host})).status).toBe(403);
+   expect((await call('/healthz',{Host:identity.Host})).status).toBe(403);
+   expect((await call('/healthz',identity)).status).toBe(200);
    expect((await call('/',{...identity,'Tailscale-User-Login':'other@example.invalid'})).status).toBe(403);
    expect((await call('/',{...identity,Host:'evil.invalid','X-Forwarded-Host':identity.Host,'X-Forwarded-Proto':'https'})).status).toBe(403);
    expect((await call('/',{...identity,Origin:local})).status).toBe(403);
@@ -212,7 +289,7 @@ describe('encrypted workspace and protected HTTP',()=>{
   const centers=new FinanceCenters(db,()=>new Date('2090-03-01'));
   const original=await centers.capital('2090-02-28','EUR');
   expect(original.knownNetMinor).toBe('56000');
-  const server=createWorkspaceServer({store,sourceCurrent:true,staticDirectory:resolve('src/web'),centers});
+  const server=createWorkspaceServer({store,sourceCurrent:true,now:()=>new Date('2090-03-01'),staticDirectory:resolve('src/web'),centers});
   await new Promise<void>(done=>server.listen(0,'127.0.0.1',done));const address=server.address();if(!address||typeof address==='string')throw new Error('NO_ADDRESS');const origin=`http://127.0.0.1:${address.port}`;
   try{
    const landing=await fetch(origin),Cookie=landing.headers.get('set-cookie')!.split(';')[0];
@@ -229,5 +306,24 @@ describe('encrypted workspace and protected HTTP',()=>{
    }
    expect(await centers.capital('2090-02-28','EUR')).toEqual(original);
   }finally{await new Promise<void>(done=>server.close(()=>done()));}
+ });
+});
+
+describe('capital evidence report update',()=>{
+ it('preserves raw report content and user overlays when installing public history prices',async()=>{
+  const directory=await mkdtemp(join(tmpdir(),'moneywave-capital-update-'));
+  const db=await openEncryptedDatabase(join(directory,'synthetic.db'),Buffer.alloc(32,29));
+  try{
+   await applyMigrations(db);const store=new WorkspaceStore(db);await store.seed(fixture());
+   const before=await store.read(),raw=await db.get<{payload_json:string}>('SELECT payload_json FROM workspace_state WHERE id=1');
+   const evidence={holdings:[],prices:[{pair:'NEARUSDT',open:'2.5',month:'2090-01',sourceUrl:'https://data-api.binance.vision/api/v3/klines?symbol=NEARUSDT&interval=1M',evidenceSha256:'a'.repeat(64),capturedAt:'2090-03-01T00:00:00.000Z'}]};
+   await store.installCryptoHistory(evidence,before.revision);
+   const after=await store.read();expect(after.report.cryptoHistory).toEqual(evidence);expect(after.state).toEqual(before.state);
+   expect((await db.get<{payload_json:string}>('SELECT payload_json FROM workspace_state WHERE id=1'))?.payload_json).toBe(raw?.payload_json);
+   expect({...after.report,cryptoHistory:undefined}).toEqual({...before.report,cryptoHistory:undefined});
+   await store.seed(fixture(),true);expect((await store.read()).report.cryptoHistory).toEqual(evidence);
+   const duplicate=await store.installCryptoHistory(evidence,after.revision);expect(duplicate.inserted).toBe(false);
+   await expect(store.installCryptoHistory(evidence,before.revision)).rejects.toThrow('REVISION_CONFLICT');
+  }finally{await db.close();await rm(directory,{recursive:true,force:true});}
  });
 });

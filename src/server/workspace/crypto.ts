@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import Decimal from 'decimal.js';
 import { z } from 'zod';
 import type { EncryptedDatabase } from '@/server/db/database';
+import type { CapitalCryptoPosition } from './crypto-history';
 import type { CapitalView } from '@/server/read-model/finance-centers';
 
 const Exact = Decimal.clone({precision:50,rounding:Decimal.ROUND_HALF_UP});
@@ -60,10 +61,11 @@ export class CryptoStore {
   }
 }
 
-export function addCryptoToCapital(base:CapitalView,crypto:CryptoPosition[]){
+export function addCryptoToCapital(base:CapitalView,crypto:CapitalCryptoPosition[]){
   const valued=crypto.filter(p=>p.eurMinor!==null);
   const total=valued.reduce((sum,p)=>sum+BigInt(p.eurMinor!),0n);
   return {...base,bankNetMinor:base.knownNetMinor,crypto,cryptoMinor:total.toString(),
+    cryptoUnpricedCount:crypto.reduce((n,p)=>n+('unpricedCount' in p?p.unpricedCount:p.parts.filter(part=>part.usdMinor===null).length),0),
     knownAssetsMinor:(BigInt(base.knownAssetsMinor)+total).toString(),
     knownNetMinor:(BigInt(base.knownNetMinor)+total).toString(),
     unvaluedCount:base.unvaluedCount+crypto.length-valued.length};

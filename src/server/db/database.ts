@@ -10,7 +10,17 @@ export interface RunResult {
   changes: number;
 }
 
-export class EncryptedDatabase {
+export interface EncryptedDatabase {
+  readonly path:string;
+  run(sql:string,parameters?:readonly SqlParameter[]):Promise<RunResult>;
+  get<T>(sql:string,parameters?:readonly SqlParameter[]):Promise<T|undefined>;
+  all<T>(sql:string,parameters?:readonly SqlParameter[]):Promise<T[]>;
+  exec(sql:string):Promise<void>;
+  transaction<T>(operation:()=>Promise<T>):Promise<T>;
+  close():Promise<void>;
+}
+
+class LocalEncryptedDatabase implements EncryptedDatabase {
   readonly path: string;
   readonly #raw: sqlite3.Database;
   #closed = false;
@@ -96,7 +106,7 @@ export async function openEncryptedDatabase(path: string, key: Buffer): Promise<
   if (key.byteLength !== 32) throw new Error("DB_KEY_INVALID");
   await mkdir(dirname(path), { recursive: true, mode: 0o700 });
   const raw = await openNative(path);
-  const database = new EncryptedDatabase(path, raw);
+  const database = new LocalEncryptedDatabase(path, raw);
   try {
     await database.exec(`PRAGMA key = "x'${key.toString("hex")}'"`);
     await database.get("SELECT count(*) AS count FROM sqlite_master");

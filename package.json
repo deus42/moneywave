@@ -21,7 +21,10 @@
     "import:manual-positions": "tsx scripts/import-manual-positions.ts",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm verify:security",
     "start": "tsx scripts/start-workspace.ts",
-    "workspace:seed": "tsx scripts/seed-workspace.ts"
+    "workspace:seed": "tsx scripts/seed-workspace.ts",
+    "stage:deploy": "tsx scripts/deploy-stage.ts",
+    "stage:status": "tsx scripts/deploy-stage.ts --status",
+    "stage:rollback": "tsx scripts/deploy-stage.ts --rollback"
   },
   "dependencies": {
     "@journeyapps/sqlcipher": "6.0.0",
@@ -29,12 +32,12 @@
     "csv-parse": "7.0.2",
     "decimal.js": "10.6.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
-    "zod": "4.5.4"
+    "zod": "4.5.4",
+    "tsx": "4.23.13"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
     "eslint": "9.39.5",
-    "tsx": "4.23.13",
     "typescript": "5.9.3",
     "typescript-eslint": "8.69.0",
     "vitest": "4.1.11"

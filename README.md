@@ -35,14 +35,14 @@ For private source paths, invoke the corresponding script directly to avoid pack
 
 ## Private hosting on ExMachina
 
-MW-032 authorizes owner-only Tailscale access. `local.moneywave.stable` is a launchd user service on `127.0.0.1:43822`; Tailscale Serve maps private HTTPS port 9443 to it. Its `caffeinate -s` wrapper prevents system sleep while on AC power; battery operation, lid closure and manual sleep are not availability guarantees. The Mac must be online and logged in with its Keychain available. A reboot requires login before this user service is available.
+MW-032 authorizes owner-only Tailscale access. The stable website runs in the local `moneywave-stage` container, published only on `127.0.0.1:43822`; Tailscale Serve maps private HTTPS port 9443 to it. Launchd `local.moneywave.stage` supervises it and provides access to the shared database through an unlogged local pipe; the database key stays in macOS Keychain and the host process. Its `caffeinate -s` wrapper prevents AC sleep. The Mac must remain online and logged in with its Keychain available.
 
-The launch agent at `~/Library/LaunchAgents/local.moneywave.stable.plist` selects a versioned source/dependency snapshot under ignored `data/runtime/hosting/releases/` and the existing `MONEYWAVE_DATA_DIR`. The owner's login is local configuration, never a tracked value. New workspace edits do not change the stable release. For an update, verify the current source, create another snapshot, preserve the existing plist for rollback, then switch its working directory and script path together and re-bootstrap the service. Never copy or reseed the financial database for a code release.
+Use `pnpm stage:deploy` to verify and install an immutable local image, `pnpm stage:status` to inspect it, and `pnpm stage:rollback` for the previous image. The container and source preview share the existing encrypted database; never copy over, reseed or migrate it for a code release. The owner's login and deployment configuration remain ignored local files. See [the staging runbook](docs/staging.md) for backup, network, restart and acceptance details.
 
-- Check: `launchctl print gui/$(id -u)/local.moneywave.stable` and `tailscale serve status`.
-- Restart: `launchctl kickstart -k gui/$(id -u)/local.moneywave.stable`, then reload the browser to renew its session.
+- Check: `pnpm stage:status` and `tailscale serve status`.
+- Restart: `docker --context colima restart moneywave-stage`, wait for the supervisor to unlock it, then reload the browser to renew its session.
 - Stop mobile exposure: `tailscale serve --https=9443 off`.
-- Stop the app: `launchctl bootout gui/$(id -u)/local.moneywave.stable`.
+- Stop the app: `launchctl bootout gui/$(id -u)/local.moneywave.stage`, then `docker --context colima stop moneywave-stage`.
 
 Do not reset the shared Tailscale Serve configuration: other apps use its other ports. The financial store remains shared with the local workspace and protected by its existing revision checks.
 
