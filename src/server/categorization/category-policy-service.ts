@@ -1,6 +1,6 @@
 import {randomUUID} from 'node:crypto';
 import {z} from 'zod';
-import {CATEGORY_GROUPS,CATEGORY_POLICY_VERSION,PURCHASES_NAME,policyCategoryCode} from '@/domain/category-policy';
+import {CATEGORY_GROUPS,CATEGORY_POLICY_VERSION,CATEGORY_POLICY_VERSIONS,PURCHASES_NAME,policyCategoryCode} from '@/domain/category-policy';
 import {classifyPersonalEntry} from '@/domain/personal-categorization';
 import type {EncryptedDatabase} from '@/server/db/database';
 
@@ -70,7 +70,7 @@ export class CategoryPolicyService {
       const counts={assigned:0,excluded:0,manualPreserved:0};
       for(const entry of entries){
         const exact=rules.get(entry.id);
-        if(entry.method==='manual'||(entry.method==='user_rule'&&entry.version!==CATEGORY_POLICY_VERSION)){counts.manualPreserved++;continue;}
+        if(entry.method==='manual'||(entry.method==='user_rule'&&!CATEGORY_POLICY_VERSIONS.has(entry.version??''))){counts.manualPreserved++;continue;}
         let code:string|undefined,ruleId:string|undefined;
         if(exact?.confirmedFx){
           // A user-confirmed currency purchase is a non-spending movement. Do not fabricate its other leg.

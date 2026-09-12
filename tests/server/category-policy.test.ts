@@ -18,9 +18,9 @@ describe('confirmed personal category policy',()=>{
  it.each([
   ['SYNTHETIC Circle Coffee','Кафе та ресторани','5814','coffee'],
   ['SYNTHETIC COFFEE CIRCL','Покупки','5999','coffee'],
-  ['SYNTHETIC MÜLLER','Краса та догляд','5977','home'],
-  ['SYNTHETIC MUELLER','Покупки','5399','home'],
-  ['SYNTHETIC shop','Здоров’я та добавки',null,'home'],
+  ['SYNTHETIC MÜLLER','Краса та догляд','5977','shopping'],
+  ['SYNTHETIC MUELLER','Покупки','5399','shopping'],
+  ['SYNTHETIC shop','Здоров’я та добавки',null,'health'],
   ['SYNTHETIC taxi','Інший транспорт',null,'transport'],
   ['SYNTHETIC gym','Спорт',null,'travel'],
   ['SYNTHETIC cinema','Дозвілля',null,'travel'],
@@ -57,11 +57,11 @@ describe('category policy across report refresh',()=>{
  afterEach(async()=>{await db.close();await rm(root,{recursive:true,force:true});});
  it('normalizes old reports and budget baselines without changing spending or duplicating plans',async()=>{
   const raw=legacy(),original=structuredClone(raw);await store.seed(raw);let w=await store.read();
-  expect(w.report.rows.map(r=>r.homeGroup)).toEqual(['Дім, здоров’я та догляд','Дім, здоров’я та догляд','Відпустки та подорожі','Відпустки та подорожі','Авто','Авто','Подарунки','Подарунки','Кава','Інші виплати']);
-  expect(w.report.plan['Дім, здоров’я та догляд']).toBe(3000);expect(w.report.plan['Відпустки та подорожі']).toBe(7000);expect(w.report.plan['Авто']).toBe(11000);
+  expect(w.report.rows.map(r=>r.homeGroup)).toEqual(['Здоров’я та краса','Здоров’я та краса','Відпустки та подорожі','Відпустки та подорожі','Авто','Авто','Подарунки','Подарунки','Кава','Інші виплати']);
+  expect(w.report.plan['Здоров’я та краса']).toBe(3000);expect(w.report.plan['Покупки, техніка, одяг, подарунки, дім']).toBe(8000);expect(w.report.plan['Відпустки та подорожі']).toBe(7000);expect(w.report.plan['Авто']).toBe(11000);
   expect(summary(w.report,w.state,'2090').plan).toBe(45000);expect(summary(w.report,w.state,'2090').net).toBe(39800);expect(raw).toEqual(original);
   await store.mutate({action:'budget',revision:w.revision,category:'Відпустки та подорожі',from:'2090-01',amount:8888});w=await store.read();
-  await store.mutate({action:'budget',revision:w.revision,category:'Дім, здоров’я та догляд',from:'2090-01',amount:7777});
+  await store.mutate({action:'budget',revision:w.revision,category:'Покупки, техніка, одяг, подарунки, дім',from:'2090-01',amount:7777});
   w=await store.read();await store.mutate({action:'row',revision:w.revision,id:'synthetic-coffee',category:'SYNTHETIC manual category',name:'SYNTHETIC chosen name',note:'SYNTHETIC note',excluded:false});
   w=await store.read();await store.mutate({action:'row',revision:w.revision,id:'synthetic-family',category:'Купівля валюти',note:'SYNTHETIC confirmed movement',excluded:true});
   const saved=await store.read(),totals=summary(saved.report,saved.state,'2090');
@@ -72,7 +72,7 @@ describe('category policy across report refresh',()=>{
   expect(await store.seed(raw,true)).toMatchObject({inserted:false});
  });
  it('lets an explicit combined limit override legacy component baselines',()=>{
-  const raw=legacy(),state=initialState(raw);state.budgets=[{category:'Дім, здоров’я та догляд',from:'2090-01',amount:5555}];
+  const raw=legacy(),state=initialState(raw);state.budgets=[{category:'Відпустки та подорожі',from:'2090-01',amount:5555}];
   expect(normalizeWorkspaceCategories(raw,state).budgets).toEqual(state.budgets);
  });
  it('synchronizes an exact FX correction and its later manual replacement with processing',async()=>{
@@ -95,7 +95,7 @@ describe('category policy across report refresh',()=>{
   raw.rows.push({...raw.rows[0],id:'synthetic-new-credit',group:'Кафе, ресторани, кава',homeGroup:'Кафе, ресторани, кава',description:'SYNTHETIC refund',purchaseId:'synthetic-coffee',eur:-200});
   raw.months[0].netSpending+=300;raw.months[0].grossSpending+=300;await store.seed(raw,true);
   const w=await store.read(),rows=effectiveRows(w.report,w.state);
-  expect(rows.find(r=>r.id==='synthetic-new-mueller')?.group).toBe('Дім, здоров’я та догляд');
+  expect(rows.find(r=>r.id==='synthetic-new-mueller')?.group).toBe('Покупки, техніка, одяг, подарунки, дім');
   expect(rows.find(r=>r.id==='synthetic-new-credit')).toMatchObject({group:'SYNTHETIC chosen',eur:-200});
  });
 });

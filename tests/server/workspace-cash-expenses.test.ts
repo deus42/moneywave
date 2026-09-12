@@ -47,6 +47,16 @@ describe('daily cash expenses (synthetic only)',()=>{
   await store.mutate({action:'undo',revision:w.revision});w=await store.read();expect(w.state.cashExpenses[0].amountMinor).toBe(600);
   expect((await centers.capital('2090-03-12','EUR',undefined,w.state.cashExpenses)).positions.find(p=>p.id===expense.accountId)?.nativeMinor).toBe('9400');
  });
+ it('keeps the merged purchase category when recovering an older cash journal after refresh or undo',async()=>{
+  await store.mutate(create({category:'Дім, здоров’я та догляд'}));
+  const expected='Покупки, техніка, одяг, подарунки, дім';
+  let w=await store.read();expect(w.state.cashExpenses[0].category).toBe(expected);
+  const raw=fixture();raw.coverage.generatedAt='2090-03-01';await store.seed(raw,true);
+  w=await store.read();await store.mutate({action:'deleteCashExpense',revision:w.revision,id:expense.id});
+  w=await store.read();await store.mutate({action:'undo',revision:w.revision});
+  w=await store.read();expect(w.state.cashExpenses[0]).toMatchObject({category:expected,amountMinor:450});
+  expect(summary(w.report,w.state,'2090-01').categories.some(c=>c.category==='Дім, здоров’я та догляд')).toBe(false);
+ });
  it('values native currency with cached official evidence available on the expense date',async()=>{
   await db.run("INSERT INTO fx_rate_cache(base_currency,quote_currency,requested_date,rate_text,source,publication_date) VALUES('USD','EUR','2090-01-10','0.8','ECB','2090-01-10'),('USD','EUR','2090-01-13','0.9','ECB','2090-01-13')");
   await store.mutate(create({accountId:'synthetic-cash-usd',amountMinor:1001}));const w=await store.read();

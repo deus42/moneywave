@@ -392,7 +392,6 @@ function render() {
  const head=$('#screen .head, #screen .journey-head');$('#page-heading').replaceChildren(...(head?[head]:[]));
  if(!activePanel&&head?.children.length>1){const actions=document.createElement('div');actions.className='page-actions';actions.append(...[...head.children].slice(1));head.append(actions);}
  $('.topbar').hidden=!activePanel&&!(page==='transactions'&&category);
- if(!workspace.sourceCurrent)$('#page-heading').insertAdjacentHTML('beforeend','<p class="status-note" role="status">Звіт потребує оновлення</p>');
  amountPrivacy.refresh();
  navigation?.remember();
 }

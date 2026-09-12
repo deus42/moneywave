@@ -1,4 +1,4 @@
-import {CATEGORY_GROUPS,CATEGORY_POLICY_VERSION,PURCHASES_KEY,PURCHASES_NAME,confirmedMerchantCategory,policyCategoryGroup} from '@/domain/category-policy';
+import {CATEGORY_GROUPS,CATEGORY_POLICY_VERSION,HEALTH_BEAUTY_GROUP,PURCHASES_KEY,PURCHASES_NAME,confirmedMerchantCategory,policyCategoryGroup} from '@/domain/category-policy';
 import {budgetFor,reportSchema,stateSchema,type WorkspaceReport,type WorkspaceState} from './model';
 
 export function normalizeReportCategories(input: WorkspaceReport): WorkspaceReport {
@@ -12,6 +12,7 @@ export function normalizeReportCategories(input: WorkspaceReport): WorkspaceRepo
     const merchant=confirmedMerchantCategory(row.description);
     if(group!=='Інші виплати'&&merchant){group=CATEGORY_GROUPS[merchant.categoryCode];rule=merchant.ruleId;}
     else if(group===PURCHASES_KEY&&policyCategoryGroup(row.originalCategory??'')==='Подарунки'){group='Подарунки';rule='source-gifts';}
+    else if(group===PURCHASES_KEY&&policyCategoryGroup(row.originalCategory??'')===HEALTH_BEAUTY_GROUP){group=HEALTH_BEAUTY_GROUP;rule='source-health-beauty';}
     row.group=policyCategoryGroup(row.group);
     if(group!==before){row.homeGroup=group;row.group=group;row.categoryPolicy={version:CATEGORY_POLICY_VERSION,rule};}
   }
@@ -24,15 +25,22 @@ export function normalizeWorkspaceCategories(report: WorkspaceReport,input: Work
   const state=structuredClone(input),keys=[...new Set([...Object.keys(report.plan),...state.budgets.map(b=>b.category)])];
   if(keys.some(k=>policyCategoryGroup(k)!==k))state.budgets=[...new Set(keys.map(policyCategoryGroup))].flatMap(category=>{
     const members=keys.filter(k=>policyCategoryGroup(k)===category);
-    return [...new Set(input.budgets.filter(b=>members.includes(b.category)).map(b=>b.from))].sort().map(from=>{
+    const versions=input.budgets.filter(b=>members.includes(b.category));
+    const mergingPurchases=category===PURCHASES_KEY&&members.some(k=>k!==category);
+    if(!mergingPurchases&&versions.every(b=>b.category===category))return versions;
+    return [...new Set(versions.map(b=>b.from))].sort().map(from=>{
       const combined=input.budgets.filter(b=>b.category===category&&b.from<=from).sort((a,b)=>b.from.localeCompare(a.from))[0];
-      return {category,from,amount:combined?.amount??members.reduce((sum,k)=>sum+budgetFor(report,input,k,from),0)};
+      // Purchases was already a live category before the home/care merge. Its
+      // saved limit is a component, not a limit for the newly combined group.
+      return {category,from,amount:!mergingPurchases&&combined?budgetFor(report,input,category,from):members.reduce((sum,k)=>sum+budgetFor(report,input,k,from),0)};
     });
   });
   for(const override of Object.values(state.overrides))override.category=policyCategoryGroup(override.category);
+  for(const expense of state.cashExpenses)expense.category=policyCategoryGroup(expense.category);
   state.categoryNames={};
   for(const [original,name] of Object.entries(input.categoryNames)){
     const category=policyCategoryGroup(original);
+    if(category===PURCHASES_KEY&&original!==PURCHASES_KEY)continue;
     if(Object.hasOwn(state.categoryNames,category)&&state.categoryNames[category]!==name)throw new Error('CATEGORY_POLICY_NAME_CONFLICT');
     state.categoryNames[category]=name;
   }

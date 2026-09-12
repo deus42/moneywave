@@ -5,6 +5,7 @@ import { changeState, initialState, isCashflowRow, mutationSchema, reportSchema,
 import {inheritNewRefundCorrections,normalizeReportCategories,normalizeWorkspaceCategories} from './category-policy';
 import {cashAccounts,prepareCashExpense} from './cash-expenses';
 import {cashHistory} from './cash-history';
+import {policyCategoryGroup} from '@/domain/category-policy';
 
 export async function ledgerFingerprint(db: EncryptedDatabase): Promise<string> {
   const hash = createHash('sha256');
@@ -35,6 +36,7 @@ export class WorkspaceStore {
         OR (h.action='undo' AND p.action IN ('cashExpense','deleteCashExpense')))
       ORDER BY h.revision DESC LIMIT 1`,[row.revision]);
     if(cashJournal)state.cashExpenses=stateSchema.parse(JSON.parse(cashJournal.payload)).cashExpenses;
+    for(const expense of state.cashExpenses)expense.category=policyCategoryGroup(expense.category);
     return { revision: row.revision, digest: row.digest, report: reportSchema.parse(JSON.parse(row.report)), state };
   }
   async seed(input: WorkspaceReport, refresh = false) {
@@ -62,7 +64,7 @@ export class WorkspaceStore {
         for (const c of report.collections) {
           const edited = next.collections.find(old=>old.id===c.id);
           const oldSource = current.report.collections.find(old=>old.id===c.id);
-          if (!edited || (oldSource && JSON.stringify(edited) === JSON.stringify(oldSource))) next = changeState(report,next,{action:'collection',revision:current.revision,collection:c});
+          if (!edited || (oldSource && JSON.stringify(edited) === JSON.stringify(oldSource) && JSON.stringify(c) !== JSON.stringify(oldSource))) next = changeState(report,next,{action:'collection',revision:current.revision,collection:c});
         }
         inheritNewRefundCorrections(report,next);
         await this.db.run('INSERT OR IGNORE INTO workspace_reports(digest,payload_json) VALUES(?,?)',[digest,payload]);

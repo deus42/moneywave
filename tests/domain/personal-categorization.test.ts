@@ -10,7 +10,7 @@ describe("personal categorization", () => {
     ["Продукти та супермаркети", "groceries"],
     ["Кафе, бари, ресторани", "dining"],
     ["Комунальні послуги", "utilities"],
-    ["Аптеки", "home"],
+    ["Аптеки", "health"],
     ["Таксі", "transport"],
     ["Одяг та взуття", "shopping"],
     ["Поповнення мобільного", "utilities"],
@@ -27,7 +27,7 @@ describe("personal categorization", () => {
   it.each([
     ["SYNTHETIC UBER TRIP", "transport"],
     ["SYNTHETIC NETFLIX", "streaming"],
-    ["SYNTHETIC PHARMACY", "home"],
+    ["SYNTHETIC PHARMACY", "health"],
     ["SYNTHETIC SUPERMARKET", "groceries"],
   ])("uses a merchant heuristic for %s", (description, categoryCode) => {
     expect(classifyPersonalEntry({
@@ -78,6 +78,9 @@ describe("personal categorization", () => {
     ["5399", "shopping"],
     ["5992", "gifts_charity"],
     ["5999", "shopping"],
+    ["5912", "health"],
+    ["5977", "health"],
+    ["7230", "health"],
   ])("maps known MCC %s into canonical category %s", (mcc, categoryCode) => {
     expect(classifyPersonalEntry({
       direction: "debit",
