@@ -121,4 +121,26 @@ describe("reporting valuation materialization", () => {
       "SELECT count(*) AS count FROM ledger_entry_valuations WHERE target_currency = 'EUR'",
     )).toEqual({ count: 0 });
   });
+
+  it("refreshes only explicitly selected repair entities", async () => {
+    const service = new ValuationService(database, resolver());
+    await service.materialize({ fromDate: "2099-01-01", toDate: "2099-01-03" });
+    const before = await database.all("SELECT * FROM balance_snapshot_valuations ORDER BY target_currency");
+    const costs = await database.all("SELECT * FROM cost_component_valuations ORDER BY target_currency");
+    const fx = await database.all("SELECT * FROM fx_conversion_source_valuations ORDER BY target_currency");
+    await database.run("UPDATE ledger_entries SET amount_minor=-202 WHERE id='entry-usd'");
+    expect(await service.materialize({ fromDate: "2099-01-01", toDate: "2099-01-03",
+      scope: { ledgerEntryIds: ["entry-usd"], balanceSnapshotIds: [] } })).toEqual({
+      entryValuations: 3, balanceValuations: 0, costValuations: 0, fxSourceValuations: 0, missingRates: [],
+    });
+    expect(await database.get("SELECT converted_amount_minor AS amount FROM ledger_entry_valuations WHERE target_currency='USD'"))
+      .toEqual({ amount: -202 });
+    expect(await database.all("SELECT * FROM balance_snapshot_valuations ORDER BY target_currency")).toEqual(before);
+    expect(await database.all("SELECT * FROM cost_component_valuations ORDER BY target_currency")).toEqual(costs);
+    expect(await database.all("SELECT * FROM fx_conversion_source_valuations ORDER BY target_currency")).toEqual(fx);
+    expect(await service.materialize({ fromDate: "2099-01-01", toDate: "2099-01-03",
+      scope: { ledgerEntryIds: [], balanceSnapshotIds: ["balance-usd"] } })).toMatchObject({
+      entryValuations: 0, balanceValuations: 3, costValuations: 0, fxSourceValuations: 0,
+    });
+  });
 });

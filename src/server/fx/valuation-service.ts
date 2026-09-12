@@ -99,24 +99,30 @@ export class ValuationService {
     fromDate: string;
     toDate: string;
     targetCurrencies?: readonly string[];
+    /** Restrict an operator repair to exact entries/snapshots, preserving all other valuations. */
+    scope?: { ledgerEntryIds: readonly string[]; balanceSnapshotIds: readonly string[] };
   }): Promise<{ entryValuations: number; balanceValuations: number; costValuations: number; fxSourceValuations: number; missingRates: MissingValuationRate[] }> {
     const fromDate = normalizeDate(input.fromDate);
     const toDate = normalizeDate(input.toDate);
     if (fromDate > toDate) throw new Error("FX_DATE_RANGE_INVALID");
     const targets = normalizeTargets(input.targetCurrencies ?? DEFAULT_TARGETS);
+    const entryScope = input.scope ? JSON.stringify(input.scope.ledgerEntryIds) : null;
+    const balanceScope = input.scope ? JSON.stringify(input.scope.balanceSnapshotIds) : null;
     const entries = await this.#database.all<ValuationSourceRow>(`
       SELECT id, CAST(amount_minor AS TEXT) AS amountMinorText, currency, substr(occurred_at, 1, 10) AS requestedDate
       FROM ledger_entries
       WHERE substr(occurred_at, 1, 10) BETWEEN ? AND ?
+        AND (? IS NULL OR id IN (SELECT value FROM json_each(?)))
       ORDER BY occurred_at, id
-    `, [fromDate, toDate]);
+    `, [fromDate, toDate, entryScope, entryScope]);
     const balances = await this.#database.all<ValuationSourceRow>(`
       SELECT id, CAST(balance_minor AS TEXT) AS amountMinorText, currency, substr(observed_at, 1, 10) AS requestedDate
       FROM balance_snapshots
       WHERE substr(observed_at, 1, 10) BETWEEN ? AND ?
+        AND (? IS NULL OR id IN (SELECT value FROM json_each(?)))
       ORDER BY observed_at, id
-    `, [fromDate, toDate]);
-    const costs = await this.#database.all<ValuationSourceRow>(`
+    `, [fromDate, toDate, balanceScope, balanceScope]);
+    const costs = input.scope ? [] : await this.#database.all<ValuationSourceRow>(`
       SELECT component.id, CAST(component.amount_minor AS TEXT) AS amountMinorText, component.currency,
         substr(MIN(entry.occurred_at), 1, 10) AS requestedDate
       FROM cost_components component
@@ -126,7 +132,7 @@ export class ValuationService {
       HAVING requestedDate BETWEEN ? AND ?
       ORDER BY requestedDate, component.id
     `, [fromDate, toDate]);
-    const fxSources = await this.#database.all<ValuationSourceRow>(`
+    const fxSources = input.scope ? [] : await this.#database.all<ValuationSourceRow>(`
       SELECT conversion.id, CAST(conversion.sold_amount_minor AS TEXT) AS amountMinorText,
         conversion.sold_currency AS currency, substr(MIN(entry.occurred_at), 1, 10) AS requestedDate
       FROM fx_conversions conversion
