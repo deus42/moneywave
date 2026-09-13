@@ -36,6 +36,7 @@ export function normalizeWorkspaceCategories(report: WorkspaceReport,input: Work
     });
   });
   for(const override of Object.values(state.overrides))override.category=policyCategoryGroup(override.category);
+  for(const split of Object.values(state.operationSplits??{}))for(const part of split.parts)part.category=policyCategoryGroup(part.category);
   for(const expense of state.cashExpenses)expense.category=policyCategoryGroup(expense.category);
   state.categoryNames={};
   for(const [original,name] of Object.entries(input.categoryNames)){

@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { isIPv4 } from 'node:net';
 import type { WorkspaceStore } from './store';
+import {purchaseLinkAudit} from './purchase-links';
 import { annualComparison, annualComparisonSchema, collectionTotals, comparisonFor, effectiveRows, purchaseValue, reportingCoverage, summary, workspaceCalendar } from './model';
 import {withCryptoHistory} from './crypto-history';
 import { includeWorkspacePosition } from './capital';
@@ -65,7 +66,7 @@ export function createWorkspaceServer(options: {store:WorkspaceStore; centers:Pi
       if (req.method === 'GET' && url.pathname === '/api/workspace') {
         const {revision,report,state} = await options.store.read();
         const rows=effectiveRows(report,state);
-        return reply(res,200,{revision,report:reportingCoverage(report,state),calendar:workspaceCalendar(report,state),statementCoverage:report.coverage,state,rows:rows.map(r=>({...r,purchaseValue:purchaseValue(r)})),
+        return reply(res,200,{revision,purchaseLinkAudit:purchaseLinkAudit(state.collections,rows,report.rows),report:reportingCoverage(report,state),calendar:workspaceCalendar(report,state),statementCoverage:report.coverage,state,rows:rows.map(r=>({...r,purchaseValue:purchaseValue(r)})),
           collectionTotals:Object.fromEntries(state.collections.map(c=>[c.id,collectionTotals(c,rows)])),cashAccounts:await options.store.cashAccounts(),cashHistory:await options.store.cashHistory(),csrf,sourceCurrent:options.sourceCurrent});
       }
       if (req.method === 'GET' && url.pathname === '/api/period') {
@@ -109,7 +110,7 @@ export function createWorkspaceServer(options: {store:WorkspaceStore; centers:Pi
       return reply(res,404,{error:'NOT_FOUND'});
     } catch (error) {
       const code = error instanceof Error ? error.message : '';
-      const allowed = ['CASH_ACCOUNT_INVALID','CASH_BEFORE_OPENING','CASH_RATE_UNAVAILABLE','FUTURE_CASH_EXPENSE','CASH_EXPENSE_EXISTS','CASH_EXPENSE_NOT_FOUND','REVISION_CONFLICT','LINK_ALREADY_ASSIGNED','LINK_INVALID','PAYMENT_LINK_INVALID','PAYMENT_ID_DUPLICATE','MANUAL_PAYMENT_WITH_BANK_DEBIT','FUTURE_MANUAL_PAYMENT','ROW_NOT_FOUND','CASH_FX_REQUIRES_DEBIT','CATEGORY_NOT_FOUND','CATEGORY_NAME_TAKEN','CATEGORY_INVALID','PERIOD_INVALID','PERIOD_UNAVAILABLE','NOTHING_TO_UNDO','BODY_TOO_LARGE','WORKSPACE_NOT_INITIALIZED'];
+      const allowed = ['SPLIT_REQUIRES_NATIVE_DEBIT','SPLIT_CURRENCY_MISMATCH','SPLIT_TOTAL_MISMATCH','SPLIT_REQUIRES_UNLINKED_EXPENSE','SPLIT_PARENT_ALREADY_LINKED','SPLIT_PURCHASE_INVALID','CASH_ACCOUNT_INVALID','CASH_BEFORE_OPENING','CASH_RATE_UNAVAILABLE','FUTURE_CASH_EXPENSE','CASH_EXPENSE_EXISTS','CASH_EXPENSE_NOT_FOUND','REVISION_CONFLICT','LINK_ALREADY_ASSIGNED','LINK_INVALID','PAYMENT_LINK_INVALID','PAYMENT_ID_DUPLICATE','MANUAL_PAYMENT_WITH_BANK_DEBIT','FUTURE_MANUAL_PAYMENT','ROW_NOT_FOUND','CASH_FX_REQUIRES_DEBIT','CATEGORY_NOT_FOUND','CATEGORY_NAME_TAKEN','CATEGORY_INVALID','PERIOD_INVALID','PERIOD_UNAVAILABLE','NOTHING_TO_UNDO','BODY_TOO_LARGE','WORKSPACE_NOT_INITIALIZED'];
       return reply(res,code === 'REVISION_CONFLICT' ? 409 : 400,{error:allowed.includes(code) ? code : 'REQUEST_FAILED'});
     }
   });

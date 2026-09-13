@@ -1,3 +1,4 @@
+import {validateOperationSplits} from './operation-splits';
 import { createHash } from 'node:crypto';
 import {cryptoHistorySchema} from './crypto-history';
 import type { EncryptedDatabase } from '@/server/db/database';
@@ -61,6 +62,7 @@ export class WorkspaceStore {
         const referenced = [...Object.keys(current.state.overrides), ...current.state.collections.flatMap(c=>c.rowIds)];
         if (referenced.some(id=>!uniqueIds.has(id))) throw new Error('REFRESH_WOULD_ORPHAN_EDITS');
         let next = normalizeWorkspaceCategories(current.report,current.state);
+        validateOperationSplits(report,next);
         for (const c of report.collections) {
           const edited = next.collections.find(old=>old.id===c.id);
           const oldSource = current.report.collections.find(old=>old.id===c.id);
@@ -112,8 +114,9 @@ export class WorkspaceStore {
     if(ids.size!==report.rows.length)throw new Error('DUPLICATE_REPORT_ROW');
     for(const month of report.months)if(report.rows.filter(r=>isCashflowRow(r)&&r.date.startsWith(month.month)).reduce((n,r)=>n+BigInt(r.eur),0n)!==BigInt(month.grossSpending))throw new Error('REPORT_MONTH_MISMATCH');
     if(Object.keys(state.overrides).some(id=>!ids.has(id)))throw new Error('REFRESH_WOULD_ORPHAN_EDITS');
-    let validated={...state,collections:[] as WorkspaceState['collections']};
+    let validated:WorkspaceState={...state,operationSplits:undefined,collections:[] as WorkspaceState['collections']};
     for(const collection of state.collections)validated=changeState(report,validated,{action:'collection',revision:expectedRevision,collection});
+    validated.operationSplits=state.operationSplits;validateOperationSplits(report,validated);
     const payload=JSON.stringify(report),digest=createHash('sha256').update(payload).digest('hex');
     const pending=this.#queue.then(()=>this.db.transaction(async()=>{
       const current=await this.read();

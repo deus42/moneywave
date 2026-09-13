@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import {operationSplitSchema,expandOperationSplits,validateOperationSplits} from './operation-splits';
 import {cryptoHistorySchema} from './crypto-history';
 import {cashExpenseInputSchema,cashExpenseSchema} from './cash-expenses';
 
@@ -9,7 +10,7 @@ const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/u);
 const text = z.string().trim().min(1).max(240);
 const id = z.string().min(1).max(180);
 const spendingType = z.enum(['transport','lodging','food','shopping','activities','settlement','other']);
-const reportingScope = z.enum(['cashflow','trip_only']);
+const reportingScope = z.enum(['cashflow','trip_only','purchase_only']);
 const operationType = z.enum(['expense','cash_fx','fx','excluded']);
 const rowCorrection = z.object({ category: text, name: z.string().trim().max(4000).optional(), note: z.string().max(2000), excluded: z.boolean(), operationType: operationType.optional() })
   .refine(v=>v.operationType===undefined || v.excluded===(v.operationType!=='expense'),'OPERATION_TYPE_CONFLICT');
@@ -33,7 +34,27 @@ export const rowSchema = z.object({
   baseCategory: z.string().optional(), collectionId: id.optional(),
   amountBasis: z.enum(['original','historical']).optional(),
 });
-export type ReportRow = z.infer<typeof rowSchema> & {operationType?: z.infer<typeof operationType>};
+export type ReportRow = z.infer<typeof rowSchema> & {operationType?: z.infer<typeof operationType>;splitParent?:boolean;splitParentId?:string;splitPartId?:string};
+// Acquisition evidence is descriptive only; it never generates ledger payments.
+export const purchaseDetailsSchema = z.object({
+  category: text, paidInCash: z.boolean().optional(),
+  items: z.array(z.object({
+    id, name: text, category: text,
+    classification: z.enum(['source','inferred','user']),
+    sourceTitle: z.string().max(2000),
+    quantity: z.number().int().positive().max(10000).nullable(),
+    displayedUnitPrice: positiveCents.nullable(),
+    asin: z.string().regex(/^[A-Z0-9]{10}$/u).optional(),
+    seller: text.optional(), sourceReference: id,
+  })).max(200),
+  sources: z.array(z.object({
+    kind: z.enum(['amazon','workbook','confirmed']), label: text, reference: id,
+    artifactHash: z.string().regex(/^[a-f0-9]{64}$/u),
+    date: day.optional(), orderId: z.string().regex(/^\d{3}-\d{7}-\d{7}$/u).optional(),
+    status: z.enum(['ordered','unknown','replacement']).optional(),
+    amounts: z.array(z.object({label:text,eur:cents})).max(30),
+  })).max(50),
+});
 export const collectionSchema = z.object({
   id, kind: z.enum(['trip', 'event', 'purchase']), name: text, start: day, end: day,
   budget: positiveCents.nullable(), note: z.string().max(2000).default(''),
@@ -44,6 +65,7 @@ export const collectionSchema = z.object({
   manualPayment: z.object({ date: day, eur: positiveCents.positive() }).nullable().default(null),
   payments: z.array(tripPaymentSchema).max(2000).optional(),
   coverageNote: z.string().max(1000).optional(),
+  purchaseDetails: purchaseDetailsSchema.optional(),
 }).refine(v => v.end >= v.start, 'END_BEFORE_START');
 export type Collection = z.infer<typeof collectionSchema>;
 export const reportSchema = z.object({
@@ -60,12 +82,14 @@ export type WorkspaceReport = z.infer<typeof reportSchema>;
 export const stateSchema = z.object({
   budgets: z.array(z.object({ from: month, category: text, amount: positiveCents })),
   overrides: z.record(id, rowCorrection),
+  operationSplits:z.record(id,operationSplitSchema).optional(),
   categoryNames: z.record(text, text).default({}),
   collections: z.array(collectionSchema),
   cashExpenses: z.array(cashExpenseSchema).max(20000).default([]),
 });
 export type WorkspaceState = z.infer<typeof stateSchema>;
 export const mutationSchema = z.discriminatedUnion('action', [
+  z.object({action:z.literal('operationSplit'),revision:z.number().int().nonnegative(),id,split:operationSplitSchema.nullable()}),
   z.object({ action: z.literal('budget'), revision: z.number().int().nonnegative(), from: month, category: text, amount: positiveCents }),
   rowCorrection.safeExtend({ action: z.literal('row'), revision: z.number().int().nonnegative(), id }),
   z.object({ action: z.literal('categoryName'), revision: z.number().int().nonnegative(), category: text, name: text }),
@@ -98,7 +122,7 @@ export function purchaseValue(row: ReportRow): {eur:number;estimated:boolean} {
   if (native !== null && native !== undefined && Number.isSafeInteger(native)) return {eur:Math.abs(native)*Math.sign(row.eur),estimated:row.amountBasis==='historical'};
   return {eur:row.eur,estimated:true};
 }
-export function isCashflowRow(row: ReportRow) { return !row.excluded && row.reportingScope !== 'trip_only'; }
+export function isCashflowRow(row: ReportRow) { return !row.excluded && row.reportingScope !== 'trip_only' && row.reportingScope !== 'purchase_only'; }
 const monthEnd = (value: string) => new Date(Date.UTC(Number(value.slice(0,4)),Number(value.slice(5,7)),0)).toISOString().slice(0,10);
 export function rowInRange(row: ReportRow, from: string, to: string): boolean {
   return row.date.length === 7 ? row.date+'-01' >= from && monthEnd(row.date) <= to : row.date >= from && row.date <= to;
@@ -138,7 +162,7 @@ export function effectiveRows(report: WorkspaceReport, state: WorkspaceState): R
     nativeMinor:String(-expense.amountMinor),currency:expense.currency,nativeEur:expense.currency==='EUR'?expense.amountMinor:null,
     group:expense.category,description:expense.description||expense.category,provider:`Готівка ${expense.currency}`,
     source:'manual_cash_expense',sourceRefs:[],excluded:false,unresolved:false,operationType:'expense',reportingScope:'cashflow'});
-  return rows;
+  return expandOperationSplits(rows,state).map(row=>row.splitParentId?{...row,spendingType:spendingTypeFor(row.group)}:row);
 }
 export function budgetFor(report: WorkspaceReport, state: WorkspaceState, category: string, month: string): number {
   const versions = state.budgets.filter(b => b.category === category && b.from <= month).sort((a,b) => b.from.localeCompare(a.from));
@@ -249,6 +273,8 @@ export function collectionTotals(c: Collection, rows: ReportRow[]) {
   for (const value of values) { const type=value.row.spendingType??'other'; types.set(type,exactSum([types.get(type)??0,value.eur])); }
   return { paid:exactSum(values.filter(v=>v.eur>0).map(v=>v.eur)),recovered:-exactSum(values.filter(v=>v.eur<0).map(v=>v.eur)),
     net:exactSum(values.map(v=>v.eur)), count:linked.length,
+    purchaseAmounts:{paid:exactSum(linked.filter(r=>r.eur>0).map(r=>purchaseValue(r).eur)),recovered:-exactSum(linked.filter(r=>r.eur<0).map(r=>purchaseValue(r).eur)),net:exactSum(linked.map(r=>purchaseValue(r).eur)),estimatedCount:linked.filter(r=>purchaseValue(r).estimated).length},
+    nativeTotals:[...new Set(linked.filter(r=>r.nativeMinor&&r.currency).map(r=>r.currency!))].map(currency=>{const nativeRows=linked.filter(r=>r.currency===currency&&r.nativeMinor);return {currency,paidMinor:exactSum(nativeRows.filter(r=>r.eur>0||(r.eur===0&&r.splitParentId)).map(r=>Math.abs(Number(r.nativeMinor)))),recoveredMinor:exactSum(nativeRows.filter(r=>r.eur<0).map(r=>Math.abs(Number(r.nativeMinor)))),netMinor:exactSum(nativeRows.map(r=>Math.abs(Number(r.nativeMinor))*(Math.sign(r.eur)||(r.splitParentId?1:0)))),count:nativeRows.length};}),
     bankPaid:exactSum(linked.filter(r=>r.eur>0).map(r=>r.eur)),bankRecovered:-exactSum(linked.filter(r=>r.eur<0).map(r=>r.eur)),bankNet:exactSum(linked.map(r=>r.eur)),
     estimatedCount:values.filter(v=>v.estimated).length,types:[...types].map(([type,eur])=>({type,eur})).sort((a,b)=>b.eur-a.eur),
     rowIds:linked.map(r=>r.id),otherPaid:exactSum((c.payments??[]).filter(p=>p.payer==='other'&&p.disposition!=='deposit').map(p=>p.eur)),
@@ -328,6 +354,10 @@ export function changeState(report: WorkspaceReport, state: WorkspaceState, muta
     for (const r of report.rows.filter(r => r.purchaseId === mutation.id)) {
       next.overrides[r.id] = { ...next.overrides[r.id], category: mutation.category, note: next.overrides[r.id]?.note ?? '', excluded: mutation.excluded, operationType:mutation.excluded?'excluded':'expense' };
     }
+  } else if(mutation.action==='operationSplit'){
+    if(['__proto__','constructor','prototype'].includes(mutation.id))throw new Error('ID_INVALID');
+    next.operationSplits={...next.operationSplits};
+    if(mutation.split)next.operationSplits[mutation.id]=mutation.split;else delete next.operationSplits[mutation.id];
   } else if (mutation.action === 'collection') {
     const c = mutation.collection;
     const ids = new Set(c.rowIds);
@@ -349,5 +379,6 @@ export function changeState(report: WorkspaceReport, state: WorkspaceState, muta
     if (!next.collections.some(c => c.id === mutation.id)) throw new Error('COLLECTION_NOT_FOUND');
     next.collections = next.collections.filter(c => c.id !== mutation.id);
   }
+  validateOperationSplits(report,next);
   return stateSchema.parse(next);
 }

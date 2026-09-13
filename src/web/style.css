@@ -1019,3 +1019,102 @@ table.data.sv-accounts td:first-child{white-space:normal}
  .trip-toolbar .search{flex-basis:100%;width:100%}
  .trip-toolbar .select{flex:1;width:auto;margin-left:0}
 }
+
+.purchase-items{margin:28px 0}.purchase-items-table td:first-child{min-width:240px}.purchase-items-table details{margin-top:8px;font-size:13px;font-weight:400}.purchase-items-table details p{white-space:normal;overflow-wrap:anywhere}.purchase-items-table td{vertical-align:top}.purchase-sources{margin-top:18px}.purchase-sources section{padding:16px 0;border-bottom:1px solid var(--line)}.purchase-items-edit fieldset{margin:14px 0;padding:14px;border:1px solid var(--line);border-radius:8px}
+.purchase-link-status{display:inline-block;font-size:12px;font-weight:500;line-height:1.4;border-radius:5px;padding:3px 7px;margin-top:7px;width:fit-content}.purchase-link-status.is-matched,.purchase-link-status.is-cash{color:#245b49;background:#eaf3ed}.purchase-link-status.is-unmatched,.purchase-link-status.is-review{color:#80540d;background:#fff4dc}.operation-purchase-links{font-size:12px;margin-top:7px}.operation-purchase-links .link{text-align:left}.transactions .transaction-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:left;max-width:68ch}
+/* Transactions: grouped by day, compact rows, one-line toolbar. */
+.transaction-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding-top:0}
+.tx-search{position:relative;display:flex;align-items:center;flex:1 1 300px;min-width:0}
+.tx-search svg{position:absolute;left:12px;width:16px;height:16px;fill:none;stroke:var(--muted);stroke-width:2;stroke-linecap:round;pointer-events:none}
+.tx-search .search{width:100%;min-width:0;padding-left:36px}
+.transaction-toolbar .select{flex:0 1 230px;min-width:0}
+.results-line{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:16px 0 0;font-size:13px}
+.results-line>span:first-child{color:var(--muted)}
+.tx-list{margin-top:14px}
+.tx-day+.tx-day{margin-top:18px}
+.tx-day-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums}
+.tx-day-head span:first-child::first-letter{text-transform:uppercase}
+.tx-day ul{margin:0;padding:0;list-style:none}
+.tx-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(120px,220px) 140px;grid-template-areas:"main cat amount" "links cat amount";align-items:center;column-gap:18px;padding:9px 0;border-bottom:1px solid var(--line)}
+.tx-main{grid-area:main;display:block;min-width:0;padding:0;text-align:left}
+.tx-name{display:block;overflow:hidden;font-size:14px;font-weight:500;color:var(--ink);white-space:nowrap;text-overflow:ellipsis}
+.tx-meta{display:block;margin-top:1px;font-size:12px;color:var(--muted)}
+.tx-main:hover .tx-name{color:var(--green)}
+.tx-links{grid-area:links;margin-top:3px;font-size:12px}
+.tx-links .link,.tx-links .purchase-link-status{font-size:12px}
+.tx-cat{grid-area:cat;justify-self:start;max-width:100%;padding:3px 10px;overflow:hidden;border-radius:99px;background:#eef3ee;color:#3f6a51;font-size:12px;white-space:nowrap;text-overflow:ellipsis}
+.tx-cat:hover{background:#e0ebdb;color:var(--green)}
+.tx-amount{grid-area:amount;text-align:right;font-variant-numeric:tabular-nums}
+.tx-amount b{display:block;font-size:14.5px;font-weight:600;white-space:nowrap}
+.tx-amount small{display:block;margin-top:1px;font-size:11.5px;color:var(--muted);white-space:nowrap}
+.tx-row.is-excluded .tx-name,.tx-row.is-excluded .tx-amount b{color:var(--muted)}
+.tx-row.is-excluded .tx-cat{background:none;padding-left:0;color:var(--muted)}
+@media(max-width:700px){
+ .transaction-toolbar .select{flex:1 1 calc(50% - 5px)}
+ .tx-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"main amount" "cat amount" "links links";row-gap:4px;column-gap:12px;padding:9px 0}
+ .tx-name{display:-webkit-box;white-space:normal;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+}
+
+/* Operation detail: name as title, amount card with facts, type as choice cards. */
+.masthead>#page-heading[hidden]{display:none}
+.masthead:has(>#page-heading[hidden]):has(>#periods[hidden]){margin-bottom:0;padding-bottom:0;border-bottom:0}
+.detail-page:has(#row-form){max-width:760px;margin-left:0}
+.detail-page:has(#row-form) .detail-heading{margin:6px 0 16px;padding:0}
+.detail-page:has(#row-form) .detail-heading h1{font-size:26px;line-height:1.25;letter-spacing:-.6px;overflow-wrap:anywhere}
+.op-summary{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:18px 32px;padding:20px 22px;border:1px solid var(--line);border-radius:12px;background:#fff}
+.op-amount>span{display:block;font-size:12.5px;color:var(--muted)}
+.op-amount>strong{display:block;margin-top:4px;font-size:34px;font-weight:600;line-height:1.1;letter-spacing:-.9px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.op-amount.is-refund>strong{color:var(--green)}
+.op-amount>small{display:block;margin-top:6px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.op-facts{display:flex;flex-wrap:wrap;gap:12px 30px}
+.op-fact span{display:block;font-size:12px;color:var(--muted)}
+.op-fact b{display:block;margin-top:3px;font-size:14px;font-weight:550}
+.op-fact b::first-letter{text-transform:uppercase}
+.detail-page:has(#row-form)>.operation-purchase-links,.detail-page:has(#row-form)>.purchase-link-status{margin-top:12px}
+.detail-page:has(#row-form)>details.form-detail{margin:12px 0 0}
+.op-form{margin-top:26px}
+.op-types{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0;margin:0;padding:0;border:0}
+.op-types legend{margin:0 0 8px;padding:0;font-size:13px;font-weight:550;color:var(--muted)}
+.op-type{display:flex;align-items:center;gap:10px;min-height:46px;padding:10px 14px;border:1px solid #d4dfd0;border-radius:10px;background:#fff;color:var(--ink);font-size:14px;cursor:pointer}
+.op-type:hover{border-color:#b8cbbd}
+.op-type input{flex:none;margin:0;accent-color:var(--green)}
+.op-type:has(input:checked){border-color:var(--green);background:#eef6f1;box-shadow:inset 0 0 0 1px var(--green)}
+.op-type:has(input:focus-visible){outline:2px solid var(--green);outline-offset:2px}
+#row-form .operation-effect{margin:8px 0 0;font-size:13px;color:var(--green)}
+.op-fields{display:flex;flex-wrap:wrap;gap:0 14px;margin-top:20px}
+.op-fields>*{flex:1 1 260px;min-width:0}
+#row-form .op-fields .field{margin-bottom:16px}
+#row-form .form-actions{margin-top:8px}
+@media(max-width:700px){
+ .op-summary{padding:16px}
+ .op-amount>strong{font-size:30px}
+ .op-types{gap:6px}
+ .op-type{min-height:44px;padding:9px 11px;font-size:13px}
+ .detail-page:has(#row-form) .detail-heading h1{font-size:22px}
+}
+
+/* Flat details: content shown directly instead of disclosure toggles. */
+.flat-detail{margin:22px 0 0}
+.flat-detail>.flat-title{margin:0 0 8px;font-size:15px;font-weight:600;color:var(--ink)}
+.flat-note{margin:12px 0 0;font-size:13.5px;line-height:1.5;color:var(--ink)}
+.flat-note>.flat-label{display:block;margin-bottom:2px;font-size:12px;font-weight:550;color:var(--muted)}
+.flat-note p{margin:0}
+.flat-note p+p{margin-top:4px}
+.item-source{margin-top:3px;font-size:12.5px;line-height:1.45;color:var(--muted)}
+.item-source p{margin:0}
+.item-source a{font-size:12.5px}
+.detail-page:has(#row-form)>.flat-note{margin:14px 0 0}
+#row-form.op-form{max-width:none}
+.flat-detail.trip-payments-detail>.flat-title{display:none}
+
+/* Operation allocation editor and native purchase payment amounts. */
+.split-part{border:1px solid var(--line);border-radius:12px;padding:18px;margin:18px 0;min-width:0}
+.split-part legend{padding:0 8px;color:var(--muted);font-size:13px}
+.split-breakdown{list-style:none;padding:0;margin:16px 0}
+.split-breakdown>li{display:flex;justify-content:space-between;gap:20px;padding:16px 0;border-bottom:1px solid var(--line)}
+.split-breakdown>li>div{min-width:0;overflow-wrap:anywhere}
+.split-breakdown>li>div:last-child{text-align:right;flex-shrink:0}
+.split-breakdown small{display:block;color:var(--muted);font-size:12px;margin-top:5px}
+@media(max-width:600px){.split-breakdown>li{flex-wrap:wrap;gap:8px}.split-breakdown>li>div:last-child{text-align:left}.split-part{padding:12px}}
+
+.purchase-payments .trip-detail>.purchase-valuation{display:block}
