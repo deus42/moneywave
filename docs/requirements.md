@@ -89,4 +89,6 @@ The [recorded category rules](category-rules.md) apply to new imports, automatic
 
 ## Purchase payment allocations
 
-- Mixed payments can be split into stable native-currency parts with independent categories and purchase links. Preserve the source debit, exclude unresolved parts from confirmed expenses, and prevent parent/child double counting. The editor must support cancellation, edit, removal and undo. Purchase amounts come from payment evidence; manual reference prices remain in source history. Allocated EUR valuation is for budgeting and must not imply an actual currency acquisition rate.
+- Mixed payments can be split into stable native-currency parts with independent categories and purchase links. Preserve the source debit, exclude unresolved parts from confirmed expenses, and prevent parent/child double counting. The editor must support cancellation, edit, removal and undo. Primary purchase and operation amounts use the selected report currency (currently EUR) consistently with report totals. Native amounts remain in details and manual reference prices remain in source history. Allocated EUR valuation is for budgeting and must not imply an actual currency acquisition rate.
+
+Purchases support a reversible archive flag. The normal purchase list excludes archived items; the Archive filter shows them across reporting periods and retains search, payment links and source evidence. Archiving never excludes the underlying transactions from spending. Purchase settings can restore an archived item.

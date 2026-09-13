@@ -66,6 +66,7 @@ export const collectionSchema = z.object({
   payments: z.array(tripPaymentSchema).max(2000).optional(),
   coverageNote: z.string().max(1000).optional(),
   purchaseDetails: purchaseDetailsSchema.optional(),
+  archived: z.boolean().optional(),
 }).refine(v => v.end >= v.start, 'END_BEFORE_START');
 export type Collection = z.infer<typeof collectionSchema>;
 export const reportSchema = z.object({

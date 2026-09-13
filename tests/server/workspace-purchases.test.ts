@@ -23,7 +23,10 @@ describe('purchase acquisition evidence',()=>{
    const saved=await store.read();expect(saved.state.collections[0].purchaseDetails).toEqual(details);
    expect(effectiveRows(saved.report,saved.state)).toEqual([]);
    expect(summary(saved.report,saved.state,'all').net).toBe(summary(before.report,before.state,'all').net);
-   await store.mutate({action:'collection',revision:1,collection:{...purchase,note:'SYNTHETIC note'}});
+   await store.mutate({action:'collection',revision:1,collection:{...purchase,note:'SYNTHETIC note',archived:true}});
+   await db.close();db=await openEncryptedDatabase(path,key);store=new WorkspaceStore(db);
+   const archived=await store.read();expect(archived.state.collections[0].archived).toBe(true);expect(archived.state.collections[0].purchaseDetails).toEqual(details);
+   expect(summary(archived.report,archived.state,'all').net).toBe(summary(saved.report,saved.state,'all').net);
    await store.mutate({action:'undo',revision:2});
    expect((await store.read()).state.collections[0]).toEqual(purchase);
    expect((await readFile(path)).includes(Buffer.from('SYNTHETIC device'))).toBe(false);
