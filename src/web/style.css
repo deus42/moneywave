@@ -910,7 +910,8 @@ table.data.bg-table .bg-bar{width:28%;text-align:left}
 table.data.bg-table .bg-name button{padding:0;font-size:14px;font-weight:500;text-align:left}
 table.data.bg-table .bg-name button:hover{color:var(--green)}
 table.data.bg-table .bg-spent{font-weight:600}
-table.data.bg-table .bg-limit{color:var(--muted)}
+table.data.bg-table .bg-limit{font-variant-numeric:tabular-nums}
+.bg-limit-label{display:none}
 table.data.bg-table small{display:block;margin-top:1px;font-size:11.5px;font-weight:400;color:var(--muted)}
 table.data.bg-table tfoot th,table.data.bg-table tfoot td{border-top:1px solid #c9d6cc;border-bottom:0;font-size:14px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink)}
 table.data.bg-table tfoot small{font-weight:400}
@@ -944,13 +945,15 @@ table.data.bg-table tfoot small{font-weight:400}
  .bg-fact strong{font-size:19px}
  table.data.bg-table,table.data.bg-table tbody,table.data.bg-table tfoot{display:block}
  table.data.bg-table thead{display:none}
- table.data.bg-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"name spent edit" "bar bar bar" "diff cmp cmp";align-items:center;gap:6px 12px;padding:14px 0;border-bottom:1px solid var(--line)}
+ table.data.bg-table tr{display:grid;grid-template-columns:minmax(0,1fr) auto auto;grid-template-areas:"name spent edit" "bar bar bar" "limit limit limit" "diff cmp cmp";align-items:center;gap:6px 12px;padding:14px 0;border-bottom:1px solid var(--line)}
  table.data.bg-table td,table.data.bg-table th{display:block;min-width:0;padding:0!important;border:0!important;text-align:left!important}
  table.data.bg-table .bg-name{grid-area:name}
  table.data.bg-table .bg-spent{grid-area:spent;text-align:right!important}
  table.data.bg-table .bg-edit{grid-area:edit;width:auto}
  table.data.bg-table .bg-bar{grid-area:bar;width:auto}
- table.data.bg-table .bg-limit{display:none}
+ table.data.bg-table .bg-limit{grid-area:limit;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 8px;font-size:13px}
+ .bg-limit-label{display:inline;color:var(--muted);font-size:12px}
+ table.data.bg-table .bg-limit small{margin:0 0 0 auto}
  table.data.bg-table .bg-diff{grid-area:diff}
  table.data.bg-table .bg-cmp{grid-area:cmp;text-align:right!important}
  table.data.bg-table .bg-diff small,table.data.bg-table .bg-cmp small{display:inline;margin-left:6px}
@@ -1126,6 +1129,10 @@ table.data.sv-accounts td:first-child{white-space:normal}
 .bp-popover .period-calendar-heading{margin:0 0 10px}
 .bp-popover-actions{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
 @media(max-width:700px){#budget-periods .budget-period-fields{grid-template-columns:1fr}.bp-popover{left:0;right:0;width:auto}.bp-popover .period-years{grid-template-columns:1fr}}
+
+/* Monthly planning stays visible beside the selected-period spending. */
+.bg-monthly-summary .bg-total strong{font-size:40px}
+@media(max-width:700px){.bg-monthly-summary .bg-total strong{font-size:32px}}
 
 /* Budget by years: one row per year with a fact/plan bar; compact two-year comparison. */
 .by-intro{margin:0 0 12px}

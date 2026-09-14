@@ -17,7 +17,7 @@ const monthNames = ['Січ','Лют','Бер','Кві','Тра','Чер','Ли�
 const fullMonths = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 const pages = {overview:'Огляд',budget:'Бюджет',cash:'Готівка',events:'Поїздки',purchases:'Покупки',transactions:'Операції'};
 let workspace, view, previous, capitalHistory=[], page='overview', period='', category='', query='', allCollections=false, seasonOnly=false, generation=0, selectedRowIds=new Set();
-let transactionLimit=80, budgetFilter='all', budgetSort='overspend', collectionQuery='', collectionKind='all', transactionStatus='all', formBaseline='';
+let transactionLimit=80, budgetFilter='all', budgetSort='spent', collectionQuery='', collectionKind='all', transactionStatus='all', formBaseline='';
 const selectedCapital=()=>view.capital;
 const inPeriod=value=>value.slice(0,7)>=view.range.from.slice(0,7)&&value.slice(0,7)<=view.range.to.slice(0,7);
 const calendarMonths=()=>workspace.calendar?.months??workspace.report.months.map(m=>m.month);
@@ -27,7 +27,7 @@ const nativeAmount=r=>r.nativeMinor!=null&&r.currency?`${new Intl.NumberFormat('
 const usd=minor=>minor===null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(minor/100);
 const detailPage = $('#detail-page');
 let navigation, activePanel=null, navigationRender=0, pendingLeave=null;
-const navigationDefaults={page:'overview',period:'',category:'',query:'',transactionLimit:80,transactionStatus:'all',budgetFilter:'all',budgetSort:'overspend',collectionQuery:'',collectionKind:'all',allCollections:false,seasonOnly:false,panel:null,scroll:0,focus:null};
+const navigationDefaults={page:'overview',period:'',category:'',query:'',transactionLimit:80,transactionStatus:'all',budgetFilter:'all',budgetSort:'spent',collectionQuery:'',collectionKind:'all',allCollections:false,seasonOnly:false,panel:null,scroll:0,focus:null};
 function focusSelector(){
  const el=document.activeElement;if(!el||el===document.body)return null;
  if(el.id)return '#'+CSS.escape(el.id);
@@ -288,9 +288,13 @@ function budgetDifference(c) {
  if(!c.plan)return '<span class="muted">—</span>';
  return c.actual>c.plan?`<span class="red">+${euro(c.actual-c.plan)}</span><small>понад план</small>`:`<span class="green">${euro(c.plan-c.actual)}</span><small>залишок</small>`;
 }
-function budgetSummary(over,limited) {
- const range=budgetPeriodRange(),remaining=view.plan-view.net,change=period!=='all'&&Number.isSafeInteger(previous?.net)?view.net-previous.net:null;
- return `<section class="bg-summary"><div class="bg-summary-main"><span class="bg-kicker">Витрачено</span><div class="bg-total"><strong>${euro(view.net)}</strong><span>із ${euro(view.plan)}</span></div>${view.plan>0?budgetBar({plan:view.plan,actual:view.net}):''}<p class="bg-coverage">${date(range.from)} — ${date(range.to)}${view.months.some(m=>m.partial)?' · ліміти повних місяців':''}</p></div><div class="bg-summary-side"><div class="bg-fact"><span>${remaining<0?'Понад план':'Залишилось'}</span><strong class="${remaining<0?'red':'green'}">${euro(Math.abs(remaining))}</strong></div><div class="bg-fact"><span>Категорій понад ліміт</span><strong class="${over?'red':''}">${over} <small class="muted">з ${limited}</small></strong></div>${change!==null?`<div class="bg-fact"><span>${budgetComparisonLabel()}</span><strong class="${change>0?'red':change<0?'green':''}">${signedEuro(change)}${previous.net>0?`<small>${change>0?'+':''}${percent(change,previous.net)}</small>`:''}</strong></div>`:''}</div></section>`;
+function budgetSummary() {
+ const range=budgetPeriodRange(),count=view.months.length;
+ return `<section class="bg-summary"><div class="bg-summary-main"><span class="bg-kicker">Витрачено за період</span><div class="bg-total"><strong>${euro(view.net)}</strong><span>із ${euro(view.plan)}</span></div>${view.plan>0?budgetBar({plan:view.plan,actual:view.net}):''}<p class="bg-coverage">${date(range.from)} — ${date(range.to)}${view.months.some(m=>m.partial)?' · ліміти повних місяців':''}</p></div><div class="bg-summary-side bg-monthly-summary"><span class="bg-kicker">${count>1?'Середній бюджет / місяць':'Бюджет на місяць'}</span><div class="bg-total"><strong>${euro(count?view.plan/count:null)}</strong></div>${count>1?`<p class="bg-coverage">План за ${count} міс. із даними ÷ ${count}</p>`:''}</div></section>`;
+}
+function budgetMonthlyCell(plan) {
+ const count=view.months.length,label=count>1?'Середній / міс.':'Бюджет / міс.';
+ return `<td class="bg-limit"><span class="bg-limit-label">${label}</span><span class="bg-monthly-value">${plan&&count?euro(plan/count):'—'}</span>${count>1?`<small>${plan?euro(plan):'—'} за період</small>`:''}</td>`;
 }
 function budgetChanges() {
  if(period==='all'||!Number.isSafeInteger(previous?.net))return '';
@@ -309,7 +313,7 @@ function budget() {
  const compare=period!=='all';
  const all=[...view.categories,...(previous?.categories??[]).filter(p=>!view.categories.some(c=>c.category===p.category)).map(p=>({category:p.category,actual:0,plan:0}))];
  const rows=all.filter(c=>budgetFilter!=='over'||c.plan>0&&c.actual>c.plan).sort((a,b)=>budgetSort==='name'?categoryName(a.category).localeCompare(categoryName(b.category),'uk'):budgetSort==='spent'?b.actual-a.actual:(b.actual-b.plan)-(a.actual-a.plan));
- const over=all.filter(c=>c.plan>0&&c.actual>c.plan).length,limited=all.filter(c=>c.plan>0).length;
+ const over=all.filter(c=>c.plan>0&&c.actual>c.plan).length;
  const amount=rows.reduce((n,c)=>n+c.actual,0)-(budgetFilter==='all'?view.refunds:0),plan=rows.reduce((n,c)=>n+c.plan,0);
  const columns=compare?7:6;
  const comparisonCell=c=>{
@@ -319,11 +323,11 @@ function budget() {
   const delta=c.actual-before;
   return `<td class="bg-cmp"><span class="${delta>0?'red':delta<0?'green':'muted'}">${delta===0?'без змін':signedEuro(delta)}</span><small>було ${euro(before)}</small></td>`;
  };
- const row=c=>`<tr class="${c.plan&&c.actual>c.plan?'is-over':''}"><td class="bg-name"><button data-category="${esc(c.category)}">${esc(categoryName(c.category))}</button></td><td class="bg-bar">${budgetBar(c)}</td><td class="bg-spent">${euro(c.actual)}</td><td class="bg-limit">${c.plan?euro(c.plan):'—'}</td><td class="bg-diff">${budgetDifference(c)}</td>${comparisonCell(c)}<td class="bg-edit"><button class="bg-edit-button" data-budget="${esc(c.category)}" aria-label="Змінити ліміт: ${esc(categoryName(c.category))}" title="Змінити ліміт">${pencilIcon}</button></td></tr>`;
+ const row=c=>`<tr class="${c.plan&&c.actual>c.plan?'is-over':''}"><td class="bg-name"><button data-category="${esc(c.category)}">${esc(categoryName(c.category))}</button></td><td class="bg-bar">${budgetBar(c)}</td><td class="bg-spent">${euro(c.actual)}</td>${budgetMonthlyCell(c.plan)}<td class="bg-diff">${budgetDifference(c)}</td>${comparisonCell(c)}<td class="bg-edit"><button class="bg-edit-button" data-budget="${esc(c.category)}" aria-label="Змінити ліміт: ${esc(categoryName(c.category))}" title="Змінити ліміт">${pencilIcon}</button></td></tr>`;
  const refunds=budgetFilter==='all'&&view.refunds?`<tr class="bg-refund"><td class="bg-name">Повернення без категорії</td><td class="bg-bar"></td><td class="bg-spent green">${euro(-view.refunds)}</td><td class="bg-limit">—</td><td class="bg-diff"></td>${compare?'<td class="bg-cmp"></td>':''}<td class="bg-edit"></td></tr>`:'';
- const table=`<div class="table-wrap"><table class="data bg-table"><thead><tr><th>Категорія</th><th class="bg-bar">Використано ліміту</th><th>Витрачено</th><th>Ліміт</th><th>Різниця</th>${compare?`<th>${budgetComparisonLabel()}</th>`:''}<th><span class="sr">Дії</span></th></tr></thead><tbody>${rows.map(row).join('')}${!rows.length?`<tr><td colspan="${columns}"><div class="empty-state"><h3>Перевищень немає</h3></div></td></tr>`:''}${refunds}</tbody><tfoot><tr><th class="bg-name">${budgetFilter==='over'?'Разом у вибраних':'Разом'}</th><td class="bg-bar">${plan>0?budgetBar({plan,actual:amount}):''}</td><td class="bg-spent">${euro(amount)}</td><td class="bg-limit">${euro(plan)}</td><td class="bg-diff">${budgetDifference({plan,actual:amount})}</td>${compare?`<td class="bg-cmp">${budgetFilter==='all'&&previous?signedEuro(view.net-previous.net):'—'}</td>`:''}<td class="bg-edit"></td></tr></tfoot></table></div>`;
+ const table=`<div class="table-wrap"><table class="data bg-table"><thead><tr><th>Категорія</th><th class="bg-bar">Використано ліміту</th><th>Витрачено</th><th>Бюджет / міс.${view.months.length>1?'<small>середній · за період</small>':''}</th><th>Різниця</th>${compare?`<th>${budgetComparisonLabel()}</th>`:''}<th><span class="sr">Дії</span></th></tr></thead><tbody>${rows.map(row).join('')}${!rows.length?`<tr><td colspan="${columns}"><div class="empty-state"><h3>Перевищень немає</h3></div></td></tr>`:''}${refunds}</tbody><tfoot><tr><th class="bg-name">${budgetFilter==='over'?'Разом у вибраних':'Разом'}</th><td class="bg-bar">${plan>0?budgetBar({plan,actual:amount}):''}</td><td class="bg-spent">${euro(amount)}</td>${budgetMonthlyCell(plan)}<td class="bg-diff">${budgetDifference({plan,actual:amount})}</td>${compare?`<td class="bg-cmp">${budgetFilter==='all'&&previous?signedEuro(view.net-previous.net):'—'}</td>`:''}<td class="bg-edit"></td></tr></tfoot></table></div>`;
  const toolbar=`<div class="bg-toolbar"><h2>Категорії</h2><div class="bg-toolbar-controls"><div class="segmented" role="group" aria-label="Фільтр бюджету"><button class="chip ${budgetFilter==='all'?'on':''}" data-budget-filter="all" aria-pressed="${budgetFilter==='all'}">Усі <span>${all.length}</span></button><button class="chip ${budgetFilter==='over'?'on':''}" data-budget-filter="over" aria-pressed="${budgetFilter==='over'}">Понад ліміт <span>${over}</span></button></div><select class="select" id="budget-sort" aria-label="Сортування бюджету"><option value="overspend" ${budgetSort==='overspend'?'selected':''}>За перевищенням</option><option value="spent" ${budgetSort==='spent'?'selected':''}>За витратами</option><option value="name" ${budgetSort==='name'?'selected':''}>За назвою</option></select></div></div>`;
- return heading('Бюджет',`<div class="budget-heading-actions" role="group" aria-label="Дії бюджету"><button type="button" class="budget-heading-action" data-action="budgetYears" aria-label="Бюджети за роками" title="Бюджети за роками">${periodIcon('calendar')}</button><button type="button" class="budget-heading-action" data-action="categories" aria-label="Налаштування бюджету" title="Налаштування бюджету"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h8m6 0h4M3 17h4m6 0h8"/><circle cx="14" cy="7" r="3"/><circle cx="10" cy="17" r="3"/></svg></button></div>`)+budgetSummary(over,limited)+`<section class="bg-categories">${toolbar}${table}</section>`+budgetChanges();
+ return heading('Бюджет',`<div class="budget-heading-actions" role="group" aria-label="Дії бюджету"><button type="button" class="budget-heading-action" data-action="budgetYears" aria-label="Бюджети за роками" title="Бюджети за роками">${periodIcon('calendar')}</button><button type="button" class="budget-heading-action" data-action="categories" aria-label="Налаштування бюджету" title="Налаштування бюджету"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h8m6 0h4M3 17h4m6 0h8"/><circle cx="14" cy="7" r="3"/><circle cx="10" cy="17" r="3"/></svg></button></div>`)+budgetSummary()+`<section class="bg-categories">${toolbar}${table}</section>`+budgetChanges();
 }
 function selectedCollections(kind) {
  const {from,to}=view.range;
