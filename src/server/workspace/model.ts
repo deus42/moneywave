@@ -80,8 +80,16 @@ export const reportSchema = z.object({
   cryptoHistory: cryptoHistorySchema.optional(),
 });
 export type WorkspaceReport = z.infer<typeof reportSchema>;
+const budgetPeriodSchema = z.object({ from: month, to: month.optional(), amount: positiveCents })
+  .refine(v => v.to === undefined || v.to >= v.from, 'BUDGET_END_BEFORE_START');
+const budgetSchema = budgetPeriodSchema.safeExtend({category:text});
+const budgetPeriodsSchema = z.array(budgetPeriodSchema).max(200).refine(periods=>{
+  const sorted=[...periods].sort((a,b)=>a.from.localeCompare(b.from));
+  return sorted.every((p,i)=>i===0 || (sorted[i-1].to!==undefined && sorted[i-1].to!<p.from));
+},'BUDGET_PERIODS_OVERLAP');
 export const stateSchema = z.object({
-  budgets: z.array(z.object({ from: month, category: text, amount: positiveCents })),
+  budgets: z.array(budgetSchema),
+  budgetCategories: z.array(text).default([]),
   overrides: z.record(id, rowCorrection),
   operationSplits:z.record(id,operationSplitSchema).optional(),
   categoryNames: z.record(text, text).default({}),
@@ -91,7 +99,8 @@ export const stateSchema = z.object({
 export type WorkspaceState = z.infer<typeof stateSchema>;
 export const mutationSchema = z.discriminatedUnion('action', [
   z.object({action:z.literal('operationSplit'),revision:z.number().int().nonnegative(),id,split:operationSplitSchema.nullable()}),
-  z.object({ action: z.literal('budget'), revision: z.number().int().nonnegative(), from: month, category: text, amount: positiveCents }),
+  budgetSchema.safeExtend({ action: z.literal('budget'), revision: z.number().int().nonnegative() }),
+  z.object({action:z.literal('budgetPeriods'),revision:z.number().int().nonnegative(),category:text,periods:budgetPeriodsSchema}),
   rowCorrection.safeExtend({ action: z.literal('row'), revision: z.number().int().nonnegative(), id }),
   z.object({ action: z.literal('categoryName'), revision: z.number().int().nonnegative(), category: text, name: text }),
   z.object({ action: z.literal('collection'), revision: z.number().int().nonnegative(), collection: collectionSchema }),
@@ -108,7 +117,7 @@ export function exactSum(values: number[]): number {
   return Number(total);
 }
 export function initialState(report: WorkspaceReport): WorkspaceState {
-  return { budgets: [], overrides: {}, categoryNames: {}, collections: structuredClone(report.collections), cashExpenses:[] };
+  return { budgets: [], budgetCategories:[], overrides: {}, categoryNames: {}, collections: structuredClone(report.collections), cashExpenses:[] };
 }
 export function spendingTypeFor(category: string): z.infer<typeof spendingType> {
   if (/продукт|їж|каф|рестора|кав|харч/iu.test(category)) return 'food';
@@ -167,7 +176,8 @@ export function effectiveRows(report: WorkspaceReport, state: WorkspaceState): R
 }
 export function budgetFor(report: WorkspaceReport, state: WorkspaceState, category: string, month: string): number {
   const versions = state.budgets.filter(b => b.category === category && b.from <= month).sort((a,b) => b.from.localeCompare(a.from));
-  return versions[0]?.amount ?? (Object.hasOwn(report.plan, category) ? report.plan[category] : 0);
+  const current = versions[0];
+  return current ? (current.to && month > current.to ? 0 : current.amount) : (!state.budgetCategories.includes(category) && Object.hasOwn(report.plan, category) ? report.plan[category] : 0);
 }
 /** Manual payments extend reporting dates without inventing income or statement coverage. */
 export function reportingCoverage(report: WorkspaceReport, state: WorkspaceState): WorkspaceReport {
@@ -253,7 +263,7 @@ export function summary(report: WorkspaceReport, state: WorkspaceState, period: 
   const original = report.rows.filter(r => inRange(r.date) && isCashflowRow(r));
   const refunds = exactSum(months.map(m => m.grossSpending - m.netSpending));
   const net = exactSum(rows.map(r => r.eur)) - refunds;
-  const categories = [...new Set([...Object.keys(report.plan), ...state.budgets.map(b => b.category), ...rows.map(r => r.group)])]
+  const categories = [...new Set([...Object.keys(report.plan), ...state.budgetCategories, ...state.budgets.map(b => b.category), ...rows.map(r => r.group)])]
     .map(category => ({ category, actual: exactSum(rows.filter(r => r.group === category).map(r => r.eur)),
       plan: exactSum(months.map(m => budgetFor(report, state, category, m.month))) }));
   const income = exactSum(months.map(m => m.income)), tax = exactSum(months.map(m => m.tax)), bank = exactSum(months.map(m => m.bank));
@@ -333,16 +343,20 @@ export function annualComparison(report: WorkspaceReport, state: WorkspaceState,
 export function changeState(report: WorkspaceReport, state: WorkspaceState, mutation: Exclude<Mutation, {action:'undo'|'cashExpense'}>): WorkspaceState {
   const next = structuredClone(state);
   if (mutation.action === 'categoryName') {
-    const categories = new Set([...Object.keys(report.plan), ...state.budgets.map(b=>b.category), ...effectiveRows(report,state).map(r=>r.group), ...Object.values(state.overrides).map(r=>r.category)]);
+    const categories = new Set([...Object.keys(report.plan), ...state.budgetCategories, ...state.budgets.map(b=>b.category), ...effectiveRows(report,state).map(r=>r.group), ...Object.values(state.overrides).map(r=>r.category)]);
     if (!categories.has(mutation.category)) throw new Error('CATEGORY_NOT_FOUND');
     if (['__proto__','constructor','prototype'].includes(mutation.category)) throw new Error('CATEGORY_INVALID');
     const normalize = (value: string) => value.normalize('NFKC').toLocaleLowerCase('uk-UA');
     if ([...categories].some(c=>c!==mutation.category && (normalize(c)===normalize(mutation.name) || normalize(Object.hasOwn(state.categoryNames,c)?state.categoryNames[c]:c)===normalize(mutation.name)))) throw new Error('CATEGORY_NAME_TAKEN');
     if (mutation.name===mutation.category) delete next.categoryNames[mutation.category];
     else next.categoryNames[mutation.category]=mutation.name;
+  } else if (mutation.action === 'budgetPeriods') {
+    const periods=budgetPeriodsSchema.parse(mutation.periods);
+    next.budgets=[...next.budgets.filter(b=>b.category!==mutation.category),...periods.map(p=>({...p,category:mutation.category}))];
+    next.budgetCategories=[...new Set([...next.budgetCategories,mutation.category])];
   } else if (mutation.action === 'budget') {
     next.budgets = next.budgets.filter(b => b.category !== mutation.category || b.from !== mutation.from);
-    next.budgets.push({ from: mutation.from, category: mutation.category, amount: mutation.amount });
+    next.budgets.push(budgetSchema.parse(mutation));
   } else if (mutation.action === 'row') {
     const row = report.rows.find(r => r.id === mutation.id);
     if (!row) throw new Error('ROW_NOT_FOUND');

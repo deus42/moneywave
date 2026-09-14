@@ -23,16 +23,20 @@ export function normalizeReportCategories(input: WorkspaceReport): WorkspaceRepo
 
 export function normalizeWorkspaceCategories(report: WorkspaceReport,input: WorkspaceState): WorkspaceState {
   const state=structuredClone(input),keys=[...new Set([...Object.keys(report.plan),...state.budgets.map(b=>b.category)])];
+  state.budgetCategories=[...new Set(state.budgetCategories.map(policyCategoryGroup))];
   if(keys.some(k=>policyCategoryGroup(k)!==k))state.budgets=[...new Set(keys.map(policyCategoryGroup))].flatMap(category=>{
     const members=keys.filter(k=>policyCategoryGroup(k)===category);
     const versions=input.budgets.filter(b=>members.includes(b.category));
     const mergingPurchases=category===PURCHASES_KEY&&members.some(k=>k!==category);
     if(!mergingPurchases&&versions.every(b=>b.category===category))return versions;
-    return [...new Set(versions.map(b=>b.from))].sort().map(from=>{
+    const shiftMonth=(month:string,delta:number)=>{const index=Number(month.slice(0,4))*12+Number(month.slice(5,7))-1+delta;return `${String(Math.floor(index/12)).padStart(4,'0')}-${String(index%12+1).padStart(2,'0')}`;};
+    const boundaries=[...new Set(versions.flatMap(b=>[b.from,...(b.to&&b.to<'9999-12'?[shiftMonth(b.to,1)]:[])]))].sort();
+    return boundaries.map((from,index)=>{
       const combined=input.budgets.filter(b=>b.category===category&&b.from<=from).sort((a,b)=>b.from.localeCompare(a.from))[0];
       // Purchases was already a live category before the home/care merge. Its
       // saved limit is a component, not a limit for the newly combined group.
-      return {category,from,amount:!mergingPurchases&&combined?budgetFor(report,input,category,from):members.reduce((sum,k)=>sum+budgetFor(report,input,k,from),0)};
+      const next=boundaries[index+1];
+      return {category,from,...(next?{to:shiftMonth(next,-1)}:{}),amount:!mergingPurchases&&combined?budgetFor(report,input,category,from):members.reduce((sum,k)=>sum+budgetFor(report,input,k,from),0)};
     });
   });
   for(const override of Object.values(state.overrides))override.category=policyCategoryGroup(override.category);

@@ -36,6 +36,13 @@ describe('home and purchases consolidation',()=>{
   expect(budgetFor(next,state,HEALTH_BEAUTY_GROUP,'2090-01')).toBe(0);
   expect(normalizeReportCategories(next)).toEqual(next);
  });
+ it('retains the end of each component budget when merging time-limited plans',()=>{
+  const raw=report(),state=initialState(raw);
+  state.budgets=[{category:FORMER_HOME_GROUP,from:'2090-01',to:'2090-02',amount:300},{category:PURCHASES_KEY,from:'2090-01',to:'2090-03',amount:500}];
+  const merged=normalizeReportCategories(raw),next=normalizeWorkspaceCategories(raw,state);
+  expect(['2090-01','2090-02','2090-03','2090-04'].map(month=>budgetFor(merged,next,PURCHASES_KEY,month))).toEqual([800,800,500,0]);
+  expect(normalizeWorkspaceCategories(merged,next)).toEqual(next);
+ });
  it('sums both live category limits at every effective month and remains stable on another refresh',()=>{
   const raw=report(),state=initialState(raw);
   state.budgets=[{category:PURCHASES_KEY,from:'2089-01',amount:500},{category:FORMER_HOME_GROUP,from:'2090-01',amount:300},{category:PURCHASES_KEY,from:'2090-02',amount:700}];
