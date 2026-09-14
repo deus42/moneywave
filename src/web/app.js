@@ -412,26 +412,48 @@ function cashMoney(value,currency){
  return `${minor<0n?'−':''}${new Intl.NumberFormat('uk-UA').format(absolute/100n)},${String(absolute%100n).padStart(2,'0')} ${esc(currency)}`;
 }
 function cashMonth(value){return `${fullMonths[Number(value.slice(5,7))-1]} ${value.slice(0,4)}`;}
+const cashShortMonth=value=>`${monthNames[Number(value.slice(5,7))-1]} ${value.slice(0,4)}`;
+const cashNumber=value=>cashMoney(value,'').trim();
+const cashSigned=(value,currency)=>`${value>0?'+':value<0?'−':''}${cashMoney(String(Math.abs(value)),currency)}`;
+function cashChart(currency,points){
+ if(points.length<2)return '';
+ const values=points.map(p=>Number(p.amountMinor)),lo=Math.min(...values),hi=Math.max(...values),span=hi-lo,step=100/(values.length-1);
+ const x=i=>i*step,y=v=>span?100-(v-lo)/span*100:50,xy=values.map((v,i)=>`${x(i).toFixed(2)},${y(v).toFixed(2)}`);
+ const axis=v=>`${new Intl.NumberFormat('uk-UA',{maximumFractionDigits:0}).format(v/100)} ${esc(currency)}`;
+ const hits=values.map((v,i)=>{const left=Math.max(0,x(i)-step/2),right=Math.min(100,x(i)+step/2);return `<rect class="cash-hit" x="${left.toFixed(2)}" y="0" width="${(right-left).toFixed(2)}" height="100"><title>${esc(cashMonth(points[i].period))}: ${cashMoney(points[i].amountMinor,currency)}</title></rect>`;}).join('');
+ return `<div class="cash-chart"><div class="cash-plot"><svg viewBox="0 0 100 100" preserveAspectRatio="none" role="img" aria-label="Помісячні залишки готівки ${esc(currency)}"><defs><linearGradient id="cash-area-fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="cash-stop-top"/><stop offset="1" class="cash-stop-bottom"/></linearGradient></defs><path class="cash-grid" d="M0,0H100M0,50H100M0,100H100"/><path class="cash-area" d="M0,100L${xy.join('L')}L100,100Z"/><path class="cash-line" d="M${xy.join('L')}"/><path class="cash-end" d="M${xy.at(-1)}l0,0"/>${hits}</svg><div class="cash-y" aria-hidden="true">${span?`<span>${axis(hi)}</span><span>${axis((hi+lo)/2)}</span><span>${axis(lo)}</span>`:`<span></span><span>${axis(hi)}</span><span></span>`}</div><div class="cash-chart-x" aria-hidden="true"><span>${esc(cashShortMonth(points[0].period))}</span><span>${esc(cashShortMonth(points.at(-1).period))}</span></div></div></div>`;
+}
 function cash(){
  const positions=view.currentCapital.positions.filter(p=>p.type==='cash');
  const expenses=allRows().filter(r=>r.source==='manual_cash_expense'&&inPeriod(r.date)).sort((a,b)=>b.date.localeCompare(a.date));
  const observations=(workspace.cashHistory??[]).filter(r=>period==='all'||inPeriod(r.period));
  const currencies=[...new Set(observations.map(r=>r.currency))];
- const months=[...new Set(observations.map(r=>r.period))];
  const currencyPurchases=allRows().filter(r=>rowOperationType(r)==='cash_fx'&&inPeriod(r.date)).sort((a,b)=>b.date.localeCompare(a.date));
- const balances=positions.map(p=>{
-  const evidence=p.manualEvidence,gap=evidence?.differenceMinor;
-  return `<div class="cash-position"><span class="label">${esc(p.currency)}</span><strong class="cash-position-value ${p.status==='conflict'?'red':''}">${cashMoney(p.nativeMinor,p.currency)}</strong><span class="quiet">${p.precision==='month'?`Залишок за ${esc(cashMonth(p.observedAt))}`:p.observedAt?'Розраховано за відомими рухами':'Немає підтвердженого залишку'}</span>${p.status==='conflict'?'<p class="cash-warning">Потребує звірки</p>':''}${gap&&gap!=='0'?`<details class="cash-gap"><summary>Різниця з відомими рухами</summary><p>${cashMoney(gap,p.currency)}</p><p>Залишок у таблиці відрізняється від початкового балансу й записаних рухів. Ця різниця не створює витрат.</p></details>`:''}</div>`;
- }).join('');
- const history=months.map(month=>`<tr><td>${esc(cashMonth(month))}</td>${currencies.map(currency=>{
+ const known=positions.filter(p=>p.reportMinor!==null),total=known.reduce((sum,p)=>sum+Number(p.reportMinor),0);
+ const basis=p=>p.precision==='month'?`за ${cashMonth(p.observedAt)}`:p.observedAt?'за записаними рухами':'немає залишку';
+ const chips=positions.map(p=>{const gap=p.manualEvidence?.differenceMinor;return `<span class="cash-chip${p.nativeMinor==='0'?' is-zero':''}${p.status==='conflict'?' is-conflict':''}"><b>${cashMoney(p.nativeMinor,p.currency)}</b><small>${esc(basis(p))}${p.status==='conflict'?' · потребує звірки':''}${gap&&gap!=='0'?` · різниця з рухами ${cashMoney(gap,p.currency)}`:''}</small></span>`;}).join('');
+ const series=currency=>observations.filter(r=>r.currency===currency&&!r.conflicting&&r.amountMinor!==null).sort((a,b)=>a.period.localeCompare(b.period));
+ const main=currencies.map(c=>({currency:c,rows:series(c)})).sort((a,b)=>b.rows.length-a.rows.length||Number(b.currency==='EUR')-Number(a.currency==='EUR'))[0];
+ const change=main&&main.rows.length>1?Number(main.rows.at(-1).amountMinor)-Number(main.rows[0].amountMinor):null;
+ const spent=expenses.reduce((sum,r)=>sum+r.eur,0);
+ const facts=`<div class="bg-fact"><span>Витрати готівкою</span><strong>${euro(spent,2)}<small class="muted">записів: ${expenses.length}</small></strong></div>${change!==null?`<div class="bg-fact"><span>Зміна залишку · ${esc(cashShortMonth(main.rows[0].period))} → ${esc(cashShortMonth(main.rows.at(-1).period))}</span><strong class="${change<0?'red':change>0?'green':''}">${cashSigned(change,main.currency)}</strong></div>`:''}${main?.rows.length?`<div class="bg-fact"><span>Останній залишок у таблиці</span><strong>${esc(cashMonth(main.rows.at(-1).period))}</strong></div>`:''}`;
+ const summary=`<section class="bg-summary cash-summary"><div class="bg-summary-main"><span class="bg-kicker">Готівка зараз · на ${date(view.currentCapital.asOf)}</span><div class="bg-total"><strong>${known.length?euro(total):'—'}</strong>${known.length<positions.length?'<span>частина без оцінки</span>':''}</div>${positions.length?`<div class="cash-chips">${chips}</div>`:'<p class="quiet">Готівкових рахунків ще немає.</p>'}</div><div class="bg-summary-side">${facts}</div></section>`;
+ const months=[...new Set(observations.map(r=>r.period))].sort().reverse();
+ const single=currencies.length===1;
+ const cell=(currency,month)=>{
   const records=observations.filter(r=>r.period===month&&r.currency===currency);
-  return `<td>${records.length?records.map(r=>`<div class="cash-observation"><strong class="${r.conflicting?'red':''}">${r.conflicting?'Суперечливі дані':cashMoney(r.amountMinor,currency)}</strong>${records.length>1?`<span class="subline">${esc(r.name)}</span>`:''}<span class="subline cash-source">${r.sources.map(s=>esc(`${s.sheet}!${s.address}`)).join(' · ')||'Джерело не вказано'}</span></div>`).join(''):'<span class="quiet">—</span>'}</td>`;
- }).join('')}</tr>`).join('');
- return heading('Готівка','<button class="button" data-action="newExpense">+ Витрата</button>')+`
- <section class="cash-balances"><div class="section-head"><h2>Облікована готівка</h2><span class="quiet">на ${date(view.currentCapital.asOf)}</span></div><div class="cash-positions">${balances||'<p class="quiet">Готівкових рахунків ще немає.</p>'}</div><p class="quiet cash-balance-note">Останній відомий залишок і внесені після нього рухи.</p></section>
- <section class="cash-expenses"><div class="section-head"><h2>Витрати готівкою</h2><span class="cash-expense-total">${euro(expenses.reduce((sum,r)=>sum+r.eur,0),2)}<small>Записів: ${expenses.length} · ${esc(titlePeriod())}</small></span></div>${expenses.length?transactionTable(expenses.slice(0,transactionLimit)):'<p class="empty">За цей період витрат готівкою немає.</p>'}${expenses.length>transactionLimit?`<button class="chip load-more" data-action="more">Ще · ${expenses.length-transactionLimit} записів</button>`:''}</section>
- <section class="cash-monthly"><div class="section-head"><h2>Помісячні залишки</h2><span class="quiet">Спостережень: ${observations.length}</span></div><p class="quiet">Залишки з таблиці за вибраний період. Місячна точність; пропуски не заповнюються.</p>${history?`<div class="table-wrap"><table class="data cash-history"><thead><tr><th>Місяць</th>${currencies.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${history}</tbody></table></div>`:'<p class="empty">У цьому періоді немає помісячних залишків із таблиці.</p>'}</section>
- ${currencyPurchases.length?`<section class="cash-currency-purchases"><div class="section-head"><h2>Купівля валюти готівкою</h2></div><p class="quiet">Ці банківські платежі поза витратами. Отримана готівка потребує окремого підтвердження залишку.</p>${transactionTable(currencyPurchases)}</section>`:''}`;
+  if(!records.length)return single?'<td class="muted">—</td><td></td>':'<td class="muted">—</td>';
+  if(records.some(r=>r.conflicting))return `<td class="red">Суперечливі дані</td>${single?'<td></td>':''}`;
+  const amount=records.reduce((sum,r)=>sum+Number(r.amountMinor),0),list=series(currency),index=list.findIndex(r=>r.period===month),before=index>0?Number(list[index-1].amountMinor):null,delta=before===null?null:amount-before;
+  const deltaHtml=delta===null||delta===0?'':`<span class="cash-delta ${delta<0?'red':'green'}">${delta>0?'+':'−'}${cashNumber(String(Math.abs(delta)))}</span>`;
+  return single?`<td><b>${cashNumber(String(amount))}</b></td><td>${deltaHtml||'<span class="muted">—</span>'}</td>`:`<td><b>${cashNumber(String(amount))}</b>${deltaHtml?`<small>${deltaHtml}</small>`:''}</td>`;
+ };
+ const sources=month=>[...new Set(observations.filter(r=>r.period===month).flatMap(r=>r.sources.map(s=>`${s.sheet}!${s.address}`)))].join(' · ');
+ const table=months.length?`<div class="table-wrap"><table class="data cash-table"><thead><tr><th>Місяць</th>${currencies.map(c=>`<th>${esc(c)}</th>`).join('')}${single?'<th>Зміна</th>':''}<th class="cash-src">Джерело</th></tr></thead><tbody>${months.map(month=>`<tr><td>${esc(cashShortMonth(month))}</td>${currencies.map(c=>cell(c,month)).join('')}<td class="cash-src">${esc(sources(month))||'—'}</td></tr>`).join('')}</tbody></table></div><p class="cash-note">Залишки з таблиці, місячна точність; пропуски не заповнюються.</p>`:'<p class="empty-inline">У цьому періоді немає помісячних залишків із таблиці.</p>';
+ const list=expenses.length?expenses.slice(0,transactionLimit).map(r=>`<button class="cash-expense-row" data-row="${esc(r.id)}"><span class="cash-expense-date">${date(r.date)}</span><span class="cash-expense-name">${esc(r.description)}<small>${esc(rowCategoryLabel(r))}${r.currency&&r.currency!=='EUR'&&nativeAmount(r)?' · '+esc(nativeAmount(r)):''}</small></span><strong>${euro(r.eur,2)}</strong></button>`).join('')+(expenses.length>transactionLimit?`<button class="chip load-more" data-action="more">Ще · ${expenses.length-transactionLimit} записів</button>`:''):`<p class="empty-inline">За цей період витрат готівкою немає.</p><button class="link cash-add" data-action="newExpense">+ Додати витрату</button>`;
+ return heading('Готівка','<button class="button" data-action="newExpense">+ Витрата</button>')+summary
+  +`<div class="cash-layout"><section class="cash-history-section"><div class="section-head"><h2>Помісячні залишки</h2><span class="quiet">${main?esc(main.currency)+' · ':''}спостережень: ${observations.length}</span></div>${main?cashChart(main.currency,main.rows):''}${table}</section><section class="cash-expense-section"><div class="section-head"><h2>Витрати готівкою</h2><span class="quiet">${esc(titlePeriod())}</span></div>${list}</section></div>`
+  +(currencyPurchases.length?`<section class="cash-currency-purchases"><div class="section-head"><h2>Купівля валюти готівкою</h2></div><p class="quiet">Ці банківські платежі поза витратами. Отримана готівка потребує окремого підтвердження залишку.</p>${transactionTable(currencyPurchases)}</section>`:'');
 }
 function categoryKeys(){return [...new Set([...Object.keys(workspace.report.plan),...workspace.state.budgets.map(b=>b.category),...(workspace.state.budgetCategories??[]),...allRows().map(r=>r.group),...Object.values(workspace.state.overrides).map(r=>r.category)])].sort((a,b)=>categoryName(a).localeCompare(categoryName(b),'uk'));}
 function categoryOptions(selected){return [...new Set([...categoryKeys(),...(selected?[selected]:[])])].map(c=>`<option ${c===selected?'selected':''} value="${esc(c)}">${esc(categoryName(c))}</option>`).join('');}

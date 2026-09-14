@@ -1067,6 +1067,59 @@ table.data.sv-accounts td:first-child{white-space:normal}
  .capital-amount{font-size:38px}
 }
 
+/* Cash page: summary, monthly balances with change, compact expense list. */
+.cash-summary .bg-total strong{font-size:44px}
+.cash-chips{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:2px}
+.cash-chip{display:flex;flex-direction:column;gap:1px;min-width:0}
+.cash-chip b{font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.cash-chip small{font-size:12px;color:var(--muted)}
+.cash-chip.is-zero b{font-weight:500;color:var(--muted)}
+.cash-chip.is-conflict b{color:var(--red)}
+.cash-layout{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(300px,1fr);gap:36px;align-items:start}
+.cash-expense-section{padding-left:30px;border-left:1px solid var(--line)}
+.cash-chart{margin:2px 0 16px}
+.cash-chart .ov-plot{grid-template-rows:140px auto}
+.cash-area{fill:url(#cash-area-fill)}
+.cash-chart-x{grid-column:1;display:flex;justify-content:space-between;margin-top:8px;font-size:11.5px;color:var(--muted)}
+table.data.cash-table{min-width:0!important}
+table.data.cash-table th,table.data.cash-table td{padding:9px 10px;vertical-align:middle}
+table.data.cash-table th:first-child,table.data.cash-table td:first-child{padding-left:0;text-align:left}
+table.data.cash-table th:last-child,table.data.cash-table td:last-child{padding-right:0}
+table.data.cash-table td{white-space:nowrap;font-variant-numeric:tabular-nums}
+table.data.cash-table td b{font-weight:600}
+table.data.cash-table td small{display:block;margin-top:1px}
+table.data.cash-table .cash-src{font-size:12px;color:var(--muted)}
+.cash-delta{font-size:12.5px;font-variant-numeric:tabular-nums}
+.cash-note{margin:10px 0 0;font-size:12.5px;color:var(--muted)}
+.cash-expense-row{display:grid;grid-template-columns:82px minmax(0,1fr) auto;align-items:baseline;gap:12px;width:100%;padding:11px 0;border-bottom:1px solid var(--line);text-align:left}
+.cash-expense-date{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.cash-expense-name{min-width:0;font-size:14px;font-weight:500;overflow-wrap:anywhere}
+.cash-expense-name small{display:block;margin-top:1px;font-size:12px;font-weight:400;color:var(--muted)}
+.cash-expense-row strong{font-size:14.5px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cash-expense-row:hover .cash-expense-name{color:var(--green)}
+.cash-add{margin-top:10px}
+.cash-currency-purchases{margin-top:30px;padding-top:24px;border-top:1px solid var(--line)}
+@media(max-width:1000px){.cash-layout{grid-template-columns:1fr;gap:28px}.cash-expense-section{padding-left:0;border-left:0}}
+@media(max-width:700px){
+ .cash-summary .bg-total strong{font-size:36px}
+ .cash-chips{gap:8px 18px}
+ table.data.cash-table th.cash-src,table.data.cash-table td.cash-src{display:none}
+ .cash-expense-row{grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+ .cash-expense-date{grid-column:1/-1}
+}
+/* Cash chart: self-contained styles, independent of the overview charts. */
+.cash-plot{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:140px auto;column-gap:12px}
+.cash-plot svg{display:block;width:100%;height:100%;overflow:visible}
+.cash-grid{fill:none;stroke:var(--line);stroke-width:1;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
+.cash-stop-top{stop-color:var(--green);stop-opacity:.18}
+.cash-stop-bottom{stop-color:var(--green);stop-opacity:0}
+.cash-line{fill:none;stroke:var(--green);stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.cash-end{fill:none;stroke:var(--green);stroke-width:8;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.cash-hit{fill:transparent}
+.cash-hit:hover{fill:var(--green);fill-opacity:.07}
+.cash-y{display:flex;flex-direction:column;justify-content:space-between;margin:-8px 0;font-size:11.5px;line-height:16px;color:var(--muted);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+@media(max-width:700px){.cash-plot{grid-template-rows:120px auto}}
+
 /* Trip creation belongs with the list controls. */
 .trip-toolbar .select{margin-left:auto}
 .trip-toolbar .button{flex-shrink:0;white-space:nowrap;min-height:40px}
@@ -1194,6 +1247,7 @@ table.data.by-table td:last-child{padding-right:0}
 @media(max-width:700px){.by-year{grid-template-columns:1fr 1fr;gap:8px 14px}.by-year-name,.by-year-bar{grid-column:1/-1}.by-year-num{text-align:left}.by-year-num:nth-of-type(5),.by-year-num:nth-of-type(6){display:block}table.data.by-table{min-width:620px!important}}
 
 .purchase-link-status{display:inline-block;font-size:12px;font-weight:500;line-height:1.4;border-radius:5px;padding:3px 7px;margin-top:7px;width:fit-content}.purchase-link-status.is-matched,.purchase-link-status.is-cash{color:#245b49;background:#eaf3ed}.purchase-link-status.is-unmatched,.purchase-link-status.is-review{color:#80540d;background:#fff4dc}.operation-purchase-links{font-size:12px;margin-top:7px}.operation-purchase-links .link{text-align:left}.transactions .transaction-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-align:left;max-width:68ch}
+
 /* Transactions: grouped by day, compact rows, one-line toolbar. */
 .transaction-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding-top:0}
 .tx-search{position:relative;display:flex;align-items:center;flex:1 1 300px;min-width:0}
