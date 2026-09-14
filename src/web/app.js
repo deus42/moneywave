@@ -59,7 +59,7 @@ async function restoreNavigation(state){
  activePanel=state.panel;
  await selectPeriod(state.period);
  if(token!==navigationRender)return;
- if(activePanel){const p=activePanel;const panels={cashExpense:()=>cashExpenseEdit(p.id),row:()=>rowEdit(p.id),operationSplit:()=>operationSplitEdit(p.id),categoryName:()=>categoryEdit(p.category),categories:categoriesEdit,budget:()=>budgetEdit(p.category??''),collection:()=>collectionEdit(p.id??null,p.kind??'trip'),collectionSettings:()=>collectionEdit(p.id,'trip',true),payment:()=>paymentEdit(p.collectionId,p.id),accounts:()=>showAccounts(p.provider),crypto:()=>open('Крипто',cryptoBox()),monthly:showMonthly,costs:showCosts,savings:showSavings,history:showHistory,print:printReport};try{await panels[p.type]?.();}catch(error){failure(error);}}
+ if(activePanel){const p=activePanel;const panels={cashExpense:()=>cashExpenseEdit(p.id),row:()=>rowEdit(p.id),operationSplit:()=>operationSplitEdit(p.id),categoryName:()=>categoryEdit(p.category),categories:categoriesEdit,budgetYears:showBudgetYears,budget:()=>budgetEdit(p.category??''),collection:()=>collectionEdit(p.id??null,p.kind??'trip'),collectionSettings:()=>collectionEdit(p.id,'trip',true),payment:()=>paymentEdit(p.collectionId,p.id),accounts:()=>showAccounts(p.provider),crypto:()=>open('Крипто',cryptoBox()),monthly:showMonthly,costs:showCosts,savings:showSavings,history:showHistory,print:printReport};try{await panels[p.type]?.();}catch(error){failure(error);}}
  if(token!==navigationRender)return;
  window.scrollTo(0,state.panel?.type==='print'?0:state.scroll);
  const focus=state.focus?document.querySelector(state.focus):null;
@@ -323,9 +323,8 @@ function budget() {
  const refunds=budgetFilter==='all'&&view.refunds?`<tr class="bg-refund"><td class="bg-name">Повернення без категорії</td><td class="bg-bar"></td><td class="bg-spent green">${euro(-view.refunds)}</td><td class="bg-limit">—</td><td class="bg-diff"></td>${compare?'<td class="bg-cmp"></td>':''}<td class="bg-edit"></td></tr>`:'';
  const table=`<div class="table-wrap"><table class="data bg-table"><thead><tr><th>Категорія</th><th class="bg-bar">Використано ліміту</th><th>Витрачено</th><th>Ліміт</th><th>Різниця</th>${compare?`<th>${budgetComparisonLabel()}</th>`:''}<th><span class="sr">Дії</span></th></tr></thead><tbody>${rows.map(row).join('')}${!rows.length?`<tr><td colspan="${columns}"><div class="empty-state"><h3>Перевищень немає</h3></div></td></tr>`:''}${refunds}</tbody><tfoot><tr><th class="bg-name">${budgetFilter==='over'?'Разом у вибраних':'Разом'}</th><td class="bg-bar">${plan>0?budgetBar({plan,actual:amount}):''}</td><td class="bg-spent">${euro(amount)}</td><td class="bg-limit">${euro(plan)}</td><td class="bg-diff">${budgetDifference({plan,actual:amount})}</td>${compare?`<td class="bg-cmp">${budgetFilter==='all'&&previous?signedEuro(view.net-previous.net):'—'}</td>`:''}<td class="bg-edit"></td></tr></tfoot></table></div>`;
  const toolbar=`<div class="bg-toolbar"><h2>Категорії</h2><div class="bg-toolbar-controls"><div class="segmented" role="group" aria-label="Фільтр бюджету"><button class="chip ${budgetFilter==='all'?'on':''}" data-budget-filter="all" aria-pressed="${budgetFilter==='all'}">Усі <span>${all.length}</span></button><button class="chip ${budgetFilter==='over'?'on':''}" data-budget-filter="over" aria-pressed="${budgetFilter==='over'}">Понад ліміт <span>${over}</span></button></div><select class="select" id="budget-sort" aria-label="Сортування бюджету"><option value="overspend" ${budgetSort==='overspend'?'selected':''}>За перевищенням</option><option value="spent" ${budgetSort==='spent'?'selected':''}>За витратами</option><option value="name" ${budgetSort==='name'?'selected':''}>За назвою</option></select></div></div>`;
- return heading('Бюджет','<button class="link budget-settings" data-action="categories">Налаштування бюджету</button>')+budgetSummary(over,limited)+`<section class="bg-categories">${toolbar}${table}</section>`+budgetChanges();
+ return heading('Бюджет',`<div class="budget-heading-actions" role="group" aria-label="Дії бюджету"><button type="button" class="budget-heading-action" data-action="budgetYears" aria-label="Бюджети за роками" title="Бюджети за роками">${periodIcon('calendar')}</button><button type="button" class="budget-heading-action" data-action="categories" aria-label="Налаштування бюджету" title="Налаштування бюджету"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h8m6 0h4M3 17h4m6 0h8"/><circle cx="14" cy="7" r="3"/><circle cx="10" cy="17" r="3"/></svg></button></div>`)+budgetSummary(over,limited)+`<section class="bg-categories">${toolbar}${table}</section>`+budgetChanges();
 }
-function budgetValue(cat,month) { return workspace.state.budgets.filter(b=>b.category===cat&&b.from<=month).sort((a,b)=>b.from.localeCompare(a.from))[0]?.amount??(Object.hasOwn(workspace.report.plan,cat)?workspace.report.plan[cat]:0); }
 function selectedCollections(kind) {
  const {from,to}=view.range;
  return workspace.state.collections.filter(c=>(kind==='purchase'?c.kind==='purchase'&&(collectionKind==='archived'?c.archived:!c.archived):c.kind!=='purchase')&&(!seasonOnly||c.season)&&(collectionKind==='all'||c.kind===collectionKind||(kind==='purchase'&&(collectionKind==='archived'||purchaseLinkInfo(c).status===collectionKind)))&&`${c.name} ${c.note} ${c.start} ${c.purchaseDetails?.category??''} ${(c.purchaseDetails?.items??[]).map(i=>`${i.name} ${i.sourceTitle} ${i.category} ${i.asin??''}`).join(' ')}`.toLocaleLowerCase('uk-UA').includes(collectionQuery.toLocaleLowerCase('uk-UA'))&&(period==='all'||allCollections||(kind==='purchase'&&collectionKind==='archived')||(c.datePrecision==='year'?c.start>=from&&c.end<=to:c.start<=to&&c.end>=from)||(c.kind!=='trip'&&totals(c).rows.some(r=>inPeriod(r.date))))).sort((a,b)=>kind==='purchase'?b.start.localeCompare(a.start):b.end.localeCompare(a.end)||b.start.localeCompare(a.start)||a.name.localeCompare(b.name,'uk-UA')||a.id.localeCompare(b.id));
@@ -412,9 +411,9 @@ function cash(){
  <section class="cash-monthly"><div class="section-head"><h2>Помісячні залишки</h2><span class="quiet">Спостережень: ${observations.length}</span></div><p class="quiet">Залишки з таблиці за вибраний період. Місячна точність; пропуски не заповнюються.</p>${history?`<div class="table-wrap"><table class="data cash-history"><thead><tr><th>Місяць</th>${currencies.map(c=>`<th>${esc(c)}</th>`).join('')}</tr></thead><tbody>${history}</tbody></table></div>`:'<p class="empty">У цьому періоді немає помісячних залишків із таблиці.</p>'}</section>
  ${currencyPurchases.length?`<section class="cash-currency-purchases"><div class="section-head"><h2>Купівля валюти готівкою</h2></div><p class="quiet">Ці банківські платежі поза витратами. Отримана готівка потребує окремого підтвердження залишку.</p>${transactionTable(currencyPurchases)}</section>`:''}`;
 }
-function categoryKeys(){return [...new Set([...Object.keys(workspace.report.plan),...workspace.state.budgets.map(b=>b.category),...allRows().map(r=>r.group),...Object.values(workspace.state.overrides).map(r=>r.category)])].sort((a,b)=>categoryName(a).localeCompare(categoryName(b),'uk'));}
+function categoryKeys(){return [...new Set([...Object.keys(workspace.report.plan),...workspace.state.budgets.map(b=>b.category),...(workspace.state.budgetCategories??[]),...allRows().map(r=>r.group),...Object.values(workspace.state.overrides).map(r=>r.category)])].sort((a,b)=>categoryName(a).localeCompare(categoryName(b),'uk'));}
 function categoryOptions(selected){return [...new Set([...categoryKeys(),...(selected?[selected]:[])])].map(c=>`<option ${c===selected?'selected':''} value="${esc(c)}">${esc(categoryName(c))}</option>`).join('');}
-function categoriesEdit(){open('Налаштування бюджету',`<button class="chip" data-action="newBudget">+ Категорія</button><div class="category-list">${categoryKeys().map(c=>`<button class="category-item" data-rename-category="${esc(c)}"><span>${esc(categoryName(c))}</span><span aria-hidden="true">→</span></button>`).join('')}</div>`);}
+function categoriesEdit(){open('Налаштування бюджету',`<button class="chip" data-action="newBudget">+ Категорія</button><div class="category-list">${categoryKeys().map(c=>`<div class="budget-category-setting"><button class="category-item" data-rename-category="${esc(c)}"><span>${esc(categoryName(c))}</span><span aria-hidden="true">→</span></button><button class="link" data-budget="${esc(c)}" aria-label="Періоди бюджету: ${esc(categoryName(c))}">Періоди бюджету</button></div>`).join('')}</div>`);}
 function categoryEdit(cat){open('Категорія',`<form id="category-form" data-category="${esc(cat)}">${field('Назва категорії',`<input name="name" value="${esc(categoryName(cat))}" maxlength="240" required>`)}<div class="form-actions"><button class="button">Зберегти</button><button type="button" class="chip" data-action="close">Скасувати</button>${categoryName(cat)!==cat?'<button type="button" class="link" data-action="originalCategoryName">Початкова назва</button>':''}</div></form>`);}
 
 function render() {
@@ -492,11 +491,73 @@ async function changeCashExpense(change,month){
   formError(error);
  }finally{savingCash=false;controls.forEach(el=>el.disabled=false);}
 }
+function shiftBudgetMonth(month,delta){const n=Number(month.slice(0,4))*12+Number(month.slice(5,7))-1+delta;return `${String(Math.floor(n/12)).padStart(4,'0')}-${String(n%12+1).padStart(2,'0')}`;}
+let bpState=null;
+const bpMonthLabel=m=>`${monthNames[Number(m.slice(5))-1]} ${m.slice(0,4)}`;
+function bpLabel(from,to){return from?`${bpMonthLabel(from)} — ${to?bpMonthLabel(to):'без кінця'}`:'Обрати період';}
+function bpRangeField(from,to){
+ const hidden=(name,value)=>`<input type="hidden" name="${name}Month" value="${value?value.slice(5,7):''}"><input type="hidden" name="${name}Year" value="${value?value.slice(0,4):''}">`;
+ return `<div class="bp-range"><span class="budget-month-title">Період</span><button type="button" class="bp-range-trigger" data-bp-open aria-haspopup="dialog" aria-expanded="false">${periodIcon('calendar','bp-icon')}<span class="bp-range-text">${esc(bpLabel(from,to))}</span>${periodIcon('down','bp-chevron')}</button>${hidden('budgetFrom',from)}${hidden('budgetTo',to)}</div>`;
+}
+function bpValues(row){return {from:budgetMonthValue(row,'budgetFrom')||'',to:budgetMonthValue(row,'budgetTo')||''};}
+function bpCalendar(){
+ const {row,anchor,right}=bpState,{from,to}=bpValues(row),left=String(Number(right)-1);
+ const selected=anchor?{from:anchor,to:anchor}:from?{from,to:to||from}:null;
+ const grid=y=>`<div class="period-year-block"><div class="period-year-head"><strong>${y}</strong></div><div class="period-month-grid" role="group" aria-label="Місяці ${y}">${monthNames.map((label,i)=>{
+  const p=`${y}-${String(i+1).padStart(2,'0')}`,inside=!!selected&&p>=selected.from&&p<=selected.to;
+  const cls=[selected&&p===selected.from?'is-start':'',selected&&p===selected.to?'is-end':'',inside&&p!==selected.from&&p!==selected.to?'in-range':''].filter(Boolean).join(' ');
+  return `<button type="button" class="period-option period-month ${cls}" data-bp-month="${p}" aria-label="${fullMonths[i]} ${y}" aria-pressed="${inside}">${label}</button>`;
+ }).join('')}</div></div>`;
+ const hint=anchor?`З ${bpMonthLabel(anchor)} — обери кінець або «Без кінця»`:'Обери початок і кінець';
+ return `<div class="period-calendar-heading"><button type="button" class="period-year-step" data-bp-year="${Number(right)-1}" aria-label="Попередній рік">${periodIcon('prev')}</button><span class="period-range-hint" aria-live="polite">${hint}</span><button type="button" class="period-year-step" data-bp-year="${Number(right)+1}" aria-label="Наступний рік">${periodIcon('next')}</button></div><div class="period-years">${grid(left)}${grid(right)}</div><div class="bp-popover-actions"><button type="button" class="chip" data-bp-open-end ${anchor||from?'':'disabled'}>Без кінця</button><button type="button" class="link" data-bp-close>Готово</button></div>`;
+}
+function bpRender(){const pop=bpState?.row.querySelector('.bp-popover');if(pop)pop.innerHTML=bpCalendar();}
+function bpClose(focus=false){if(!bpState)return;const row=bpState.row,trigger=row.querySelector('.bp-range-trigger');row.querySelector('.bp-popover')?.remove();trigger?.setAttribute('aria-expanded','false');bpState=null;if(focus)trigger?.focus({preventScroll:true});}
+function bpOpen(row){
+ bpClose();
+ const {from,to}=bpValues(row),fromYear=Number((from||String(new Date().getFullYear())).slice(0,4)),toYear=Number((to||from||String(fromYear)).slice(0,4));
+ bpState={row,anchor:null,right:String(Math.max(toYear,fromYear+1))};
+ row.insertAdjacentHTML('beforeend','<div class="bp-popover" role="dialog" aria-label="Період бюджету"></div>');
+ bpRender();row.querySelector('.bp-range-trigger').setAttribute('aria-expanded','true');
+ (row.querySelector('.bp-popover .is-start')??row.querySelector('.bp-popover [data-bp-month]'))?.focus({preventScroll:true});
+}
+function bpSet(from,to){const row=bpState.row;setBudgetMonthValue(row,'budgetFrom',from);setBudgetMonthValue(row,'budgetTo',to||'');}
+document.addEventListener('mouseover',event=>{
+ const b=event.target.closest?.('[data-bp-month]');if(!b||!bpState?.anchor)return;
+ const [a,z]=[bpState.anchor,b.dataset.bpMonth].sort();
+ bpState.row.querySelectorAll('[data-bp-month]').forEach(el=>{const m=el.dataset.bpMonth;el.classList.toggle('in-preview',m>a&&m<z);el.classList.toggle('is-preview-end',m===b.dataset.bpMonth&&m!==bpState.anchor);});
+});
+function budgetMonthValue(row,name){
+ const month=row.querySelector(`[name=${name}Month]`).value,year=row.querySelector(`[name=${name}Year]`).value;
+ if(!month&&!year)return '';
+ return /^(0[1-9]|1[0-2])$/u.test(month)&&/^\d{1,4}$/u.test(year)&&Number(year)>0?`${year.padStart(4,'0')}-${month}`:null;
+}
+function setBudgetMonthValue(row,name,value){row.querySelector(`[name=${name}Month]`).value=value.slice(5,7);row.querySelector(`[name=${name}Year]`).value=value.slice(0,4);const text=row.querySelector('.bp-range-text');if(text)text.textContent=bpLabel(budgetMonthValue(row,'budgetFrom')||'',budgetMonthValue(row,'budgetTo')||'');}
+function budgetMonthError(){const error=$('#form-error');error.hidden=false;error.textContent='Оберіть місяць і вкажіть рік для кожної межі. «По» можна залишити повністю порожнім.';}
+function budgetPeriodRow(p){return `<fieldset class="budget-period"><legend>Період</legend><div class="budget-period-fields">${bpRangeField(p.from,p.to??'')}<label class="budget-amount"><span class="budget-month-title">На місяць</span><span class="budget-amount-input"><input data-private name="budgetAmount" type="number" min="0" max="10000000" step="0.01" value="${(p.amount/100).toFixed(2)}" aria-label="Ліміт на місяць, EUR" required><em>EUR</em></span></label></div><button type="button" class="budget-period-remove" data-action="removeBudgetPeriod" aria-label="Прибрати період" title="Прибрати період"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button></fieldset>`;}
+function labelBudgetPeriods(){const rows=[...$('#budget-periods').children];rows.forEach((row,i)=>row.querySelector('legend').textContent=`Період ${i+1}`);$('#budget-period-empty').hidden=rows.length>0;amountPrivacy.refresh();}
+function addBudgetPeriod(){
+ const rows=[...$('#budget-periods').children],last=rows.at(-1),today=workspace.today??new Date().toISOString().slice(0,10);
+ let year=Number(today.slice(0,4)),amount=0;
+ if(last){const from=budgetMonthValue(last,'budgetFrom'),to=budgetMonthValue(last,'budgetTo');if(!from||to===null){budgetMonthError();return;}year=Math.max(year,Number((to||from).slice(0,4))+1);if(year>9999){const error=$('#form-error');error.hidden=false;error.textContent='Максимальний рік — 9999.';return;}if(!to)setBudgetMonthValue(last,'budgetTo',`${year-1}-12`);const value=last.querySelector('[name=budgetAmount]').value;try{amount=toCents(value);}catch{}}
+ $('#budget-periods').insertAdjacentHTML('beforeend',budgetPeriodRow({from:`${year}-01`,to:`${year}-12`,amount}));labelBudgetPeriods();$('#budget-periods').lastElementChild.querySelector('.bp-range-trigger').focus();
+}
 function budgetEdit(cat='') {
- const from=period==='last12'?view.currentCapital.asOf.slice(0,7):period==='all'?workspace.report.months.at(-1).month:period.length===4?period+'-01':period;
- const firstYear=Math.min(Number(workspace.report.coverage.start.slice(0,4)),Number(from.slice(0,4))),lastYear=Math.max(Number(view.currentCapital.asOf.slice(0,4))+1,Number(from.slice(0,4)),...workspace.state.budgets.map(b=>Number(b.from.slice(0,4))));
- const years=Array.from({length:lastYear-firstYear+1},(_,i)=>String(firstYear+i));
- open('Ліміт бюджету',`<form id="budget-form" data-category="${esc(cat)}">${field('Категорія',cat?`<input name="category" value="${esc(categoryName(cat))}" readonly>`:'<input name="category" required maxlength="240">')}${field('Місячний ліміт, EUR',`<input data-private name="amount" type="number" min="0" max="10000000" step="0.01" value="${(budgetValue(cat,from)/100).toFixed(2)}" required>`)}<fieldset class="budget-start"><legend>Діє з</legend><div class="form-pair">${field('Рік',`<select name="fromYear" required>${years.map(y=>`<option value="${y}" ${y===from.slice(0,4)?'selected':''}>${y}</option>`).join('')}</select>`)}${field('Місяць',`<select name="fromMonth" required>${fullMonths.map((label,i)=>{const m=String(i+1).padStart(2,'0');return `<option value="${m}" ${m===from.slice(5,7)?'selected':''}>${label}</option>`;}).join('')}</select>`)}</div></fieldset><div class="form-actions"><button class="button">Зберегти</button><button type="button" class="chip" data-action="close">Скасувати</button></div></form>`);
+ const versions=workspace.state.budgets.filter(b=>b.category===cat).sort((a,b)=>a.from.localeCompare(b.from)).map(b=>({...b}));
+ const managed=(workspace.state.budgetCategories??[]).includes(cat),start=workspace.report.coverage.start.slice(0,7);
+ if(!managed&&Object.hasOwn(workspace.report.plan,cat)&&(!versions.length||versions[0].from>start))versions.unshift({from:start,amount:workspace.report.plan[cat]});
+ const periods=versions.map((p,i)=>{const next=versions[i+1];return {...p,to:next&&(!p.to||p.to>=next.from)?shiftBudgetMonth(next.from,-1):p.to};});
+ open('Періоди бюджету',`<form id="budget-form" data-category="${esc(cat)}">${cat?`<div class="budget-form-category"><span>Категорія</span><strong>${esc(categoryName(cat))}</strong><input type="hidden" name="category" value="${esc(categoryName(cat))}"></div>`:field('Категорія','<input name="category" required maxlength="240">')}<p class="quiet budget-form-hint">Межі включно. Порожнє «По» — ліміт діє без кінцевої дати.</p><div id="budget-periods">${periods.map(budgetPeriodRow).join('')}</div><p id="budget-period-empty" class="quiet" ${periods.length?'hidden':''}>Періодів немає — ліміт не встановлено.</p><button type="button" class="chip" data-action="addBudgetPeriod">+ Додати період</button><div class="form-actions"><button class="button">Зберегти</button><button type="button" class="chip" data-action="close">Скасувати</button></div></form>`);
+ labelBudgetPeriods();
+}
+function saveBudgetPeriods(form,data){
+ const periods=[...form.querySelectorAll('.budget-period')].map(row=>({from:budgetMonthValue(row,'budgetFrom'),to:budgetMonthValue(row,'budgetTo'),amount:toCents(row.querySelector('[name=budgetAmount]').value)}));
+ if(periods.some(p=>!p.from||p.to===null)){budgetMonthError();return;}
+ periods.sort((a,b)=>a.from.localeCompare(b.from));periods.forEach(p=>{if(!p.to)p.to=undefined;});
+ const error=$('#form-error');
+ if(periods.some(p=>p.to&&p.to<p.from)){error.hidden=false;error.textContent='Місяць «По» має бути не раніше місяця «З».';return;}
+ if(periods.some((p,i)=>i>0&&(!periods[i-1].to||periods[i-1].to>=p.from))){error.hidden=false;error.textContent='Періоди перетинаються. Заверши попередній до початку наступного.';return;}
+ return mutate({action:'budgetPeriods',category:form.dataset.category||categoryKeys().find(c=>categoryName(c).toLocaleLowerCase('uk')===String(data.get('category')).trim().toLocaleLowerCase('uk'))||data.get('category'),periods});
 }
 function purchaseRowMoney(r){return euro(r.eur,2);}
 function purchaseMoney(t,kind){return euro(t[kind],2);}
@@ -663,9 +724,45 @@ function showMonthly() {
 function showCosts() {
  open('Податки й банк',stats([['Від доходу',percent(view.tax+view.bank,view.income)],['Сплачено',euro(view.tax+view.bank,2)]])+line('Податки',view.tax)+line('Банк',view.bank)+line(`FX · оцінка (${view.fx===null?'—':percent(view.fx,view.income)} доходу)`,view.fx)+`<div class="line total-line"><span>З FX · від доходу</span><strong>${view.fx===null?'—':percent(view.tax+view.bank+view.fx,view.income)}</strong></div><details class="inline-detail"><summary>Розрахунок</summary><p class="quiet">База: дохід ${euro(view.income,2)} · ${esc(titlePeriod())}. FX — оцінка відхилення від офіційного курсу, не окрема комісія.</p></details><div class="table-wrap"><table class="data cost-records"><thead><tr><th>Дата</th><th>Складова</th><th>EUR</th></tr></thead><tbody>${view.costRows.map(r=>`<tr><td>${date(r.date)}</td><td>${esc(r.label)}</td><td>${euro(r.eur,2)}</td></tr>`).join('')}</tbody></table></div>`);
 }
+let budgetYearsData=[];
+const budgetVariance=value=>value===null?'—':`<span class="${value>0?'red':value<0?'green':'muted'}">${signedEuro(value)}</span>`;
+async function showBudgetYears(){
+ const data=await api('/api/budget-years');
+ if(data.revision!==workspace.revision){workspace=await api('/api/workspace');if(workspace.revision!==data.revision)throw new Error('DATA_CHANGED');}
+ budgetYearsData=data.years;
+ if(!budgetYearsData.length){open('Бюджети за роками','<p class="quiet">Ще немає періодів бюджету або історії витрат.</p>');return;}
+ const current=Number((workspace.today??new Date().toISOString()).slice(0,4)),last=budgetYearsData.filter(y=>y.year<=current).at(-1)??budgetYearsData.at(-1),prior=budgetYearsData.filter(y=>y.year<last.year).at(-1)??last;
+ const first=activePanel?.firstYear??prior.year,second=activePanel?.secondYear??last.year;
+ const options=value=>budgetYearsData.map(y=>`<option value="${y.year}" ${y.year===value?'selected':''}>${y.year}</option>`).join('');
+ const yearRow=y=>{
+  const status=y.complete?'Повний рік':y.actual===null?'Факту ще немає':`Неповний · ${y.coveredMonths} міс.`;
+  const num=(label,value)=>`<div class="by-year-num"><span>${label}</span><b>${value}</b></div>`;
+  return `<div class="by-year${y.complete?'':' is-partial'}"><div class="by-year-name"><strong>${y.year}</strong><small>${status}</small></div><div class="by-year-bar">${y.plan>0&&y.actual!==null?budgetBar({plan:y.plan,actual:y.actual}):'<span class="muted">—</span>'}</div>${num('Факт',euro(y.actual))}${num('План на рік',euro(y.plan))}${num('Відхилення',budgetVariance(y.variance))}${num('Сер. / міс.',y.monthlyActual===null?'—':euro(y.monthlyActual))}</div>`;
+ };
+ open('Бюджети за роками',`<p class="quiet by-intro">Факт проти плану на весь рік. Для неповних років відхилення ще не визначене.</p><div class="by-years">${budgetYearsData.map(yearRow).join('')}</div><section class="by-compare"><div class="section-head"><h2>Порівняння років</h2><div class="by-compare-pick"><select id="budget-year-first" aria-label="Перший рік">${options(first)}</select><span aria-hidden="true">→</span><select id="budget-year-second" aria-label="Другий рік">${options(second)}</select></div></div><div id="budget-year-comparison"></div></section>`);
+ renderBudgetYearComparison();
+}
+function renderBudgetYearComparison(){
+ const first=Number($('#budget-year-first').value),second=Number($('#budget-year-second').value),a=budgetYearsData.find(y=>y.year===first),b=budgetYearsData.find(y=>y.year===second);
+ if(!a||!b)return;
+ if(activePanel){activePanel.firstYear=first;activePanel.secondYear=second;navigation.remember();}
+ const comparable=a.complete&&b.complete;
+ const pick=(year,category)=>year.categories.find(c=>c.category===category)??{plan:0,actual:year.actual===null?null:0};
+ const rows=[...new Set([...a.categories.map(c=>c.category),...b.categories.map(c=>c.category)])].map(category=>({category,x:pick(a,category),y:pick(b,category)}))
+  .sort((p,q)=>(q.y.plan-p.y.plan)||((q.y.actual??0)-(p.y.actual??0))||categoryName(p.category).localeCompare(categoryName(q.category),'uk'));
+ const cells=(x,y,fact)=>{
+  const before=fact?x.actual:x.plan,after=fact?y.actual:y.plan;
+  const change=fact?(comparable&&before!==null&&after!==null?budgetVariance(after-before):'<span class="muted">—</span>'):`<span class="${after-before===0?'muted':''}">${signedEuro(after-before)}</span>`;
+  return `<td>${euro(before)}</td><td>${euro(after)}</td><td class="by-delta">${change}</td>`;
+ };
+ const mark=year=>`${year.year}${year.complete?'':'*'}`;
+ const totals={a:{plan:a.plan,actual:a.actual},b:{plan:b.plan,actual:b.actual}};
+ $('#budget-year-comparison').innerHTML=`<div class="table-wrap"><table class="data by-table"><thead><tr><th rowspan="2">Категорія</th><th colspan="3" class="by-group">Факт</th><th colspan="3" class="by-group by-plan">План</th></tr><tr><th>${mark(a)}</th><th>${mark(b)}</th><th>Зміна</th><th class="by-plan">${first}</th><th>${second}</th><th>Зміна</th></tr></thead><tbody>${rows.map(r=>`<tr><th><button class="link" data-budget="${esc(r.category)}">${esc(categoryName(r.category))}</button></th>${cells(r.x,r.y,true)}${cells(r.x,r.y,false)}</tr>`).join('')}</tbody><tfoot><tr><th>Разом</th>${cells(totals.a,totals.b,true)}${cells(totals.a,totals.b,false)}</tr></tfoot></table></div><p class="by-note">${comparable?`Зміна — від ${first} до ${second}.`:'* Неповний рік: факт лише за покриті місяці, тому зміна факту не рахується.'}</p>`;
+ amountPrivacy.refresh();
+}
 async function showHistory() {
  const records=await api('/api/history');
- const labels={operationSplit:'Розподіл оплати',cashExpense:'Витрата готівкою',deleteCashExpense:'Видалення готівкової витрати',row:'Назва та категорія операції',categoryName:'Назва категорії',budget:'Ліміт бюджету',collection:'Подія або покупка',deleteCollection:'Видалення запису',undo:'Скасування правки',report_refresh:'Оновлення фінансового звіту',gift_category_split:'Подарунки — окрема категорія'};
+ const labels={operationSplit:'Розподіл оплати',cashExpense:'Витрата готівкою',deleteCashExpense:'Видалення готівкової витрати',row:'Назва та категорія операції',categoryName:'Назва категорії',budget:'Ліміт бюджету',budgetPeriods:'Періоди бюджету',collection:'Подія або покупка',deleteCollection:'Видалення запису',undo:'Скасування правки',report_refresh:'Оновлення фінансового звіту',gift_category_split:'Подарунки — окрема категорія'};
  open('Історія правок',`<p class="quiet">Виписки ${date(workspace.statementCoverage.start)}–${date(workspace.statementCoverage.end)}</p>${records[0]&&!['undo','report_refresh'].includes(records[0].action)?'<button class="button outline" data-action="undo">Скасувати останню</button>':''}${records.map(r=>`<div class="line"><span>${esc(labels[r.action]??r.action)}<small class="subline display-block">${new Date(r.createdAt).toLocaleString('uk-UA')}</small></span><b>v${r.revision}</b></div>`).join('')||'<p class="empty">Правок немає</p>'}`);
 }
 function tripPrintReport() {
@@ -697,8 +794,17 @@ function paymentEdit(collectionId,id) {
 }
 function toCents(value){ const s=String(value);if(!/^\d+(?:\.\d{1,2})?$/.test(s))throw new Error('AMOUNT_INVALID');const [a,b='']=s.split('.');return Number(a)*100+Number(b.padEnd(2,'0')); }
 document.addEventListener('click',async event=>{
+ if(bpState&&!event.target.closest('.bp-popover,.bp-range-trigger'))bpClose();
  if(!event.target.closest('.period-control'))closePeriodPicker();
  const b=event.target.closest('button');if(!b||b.disabled)return;
+ if(b.hasAttribute('data-bp-open')){const row=b.closest('.budget-period');if(bpState?.row===row)bpClose(true);else bpOpen(row);return;}
+ if(b.dataset.bpYear){bpState.right=b.dataset.bpYear;const label=b.getAttribute('aria-label');bpRender();bpState.row.querySelector(`.bp-popover [aria-label="${label}"]`)?.focus({preventScroll:true});return;}
+ if(b.dataset.bpMonth){const month=b.dataset.bpMonth;if(!bpState.anchor){bpState.anchor=month;bpRender();bpState.row.querySelector(`[data-bp-month="${month}"]`)?.focus({preventScroll:true});return;}const [from,to]=[bpState.anchor,month].sort();bpSet(from,to);bpClose(true);return;}
+ if(b.hasAttribute('data-bp-open-end')){const from=bpState.anchor||bpValues(bpState.row).from;if(from)bpSet(from,'');bpClose(true);return;}
+ if(b.hasAttribute('data-bp-close')){bpClose(true);return;}
+ if(b.dataset.action==='removeBudgetPeriod'){b.closest('.budget-period').remove();labelBudgetPeriods();return;}
+ if(b.dataset.action==='clearBudgetEnd'){setBudgetMonthValue(b.closest('.budget-period'),'budgetTo','');return;}
+ if(b.dataset.action==='addBudgetPeriod'){addBudgetPeriod();return;}
  if(b.dataset.tripSettings){await showPanel({type:'collectionSettings',id:b.dataset.tripSettings});if(b.hasAttribute('data-focus-budget'))detailPage.querySelector('[name=budget]')?.focus();return;}
  if(b.dataset.tripTab){await showPanel({type:'collection',id:b.dataset.tripOwner,tab:b.dataset.tripTab});detailPage.querySelector(`[data-trip-tab="${b.dataset.tripTab}"]`)?.focus({preventScroll:true});return;}
  if(b.dataset.removePayment){const c=workspace.state.collections.find(x=>x.id===b.dataset.paymentOwner);if(c)await mutate({action:'collection',collection:{...c,payments:(c.payments??[]).filter(p=>p.id!==b.dataset.removePayment)}});return;}
@@ -720,10 +826,11 @@ document.addEventListener('click',async event=>{
  if(b.dataset.new){showPanel({type:'collection',kind:b.dataset.new});return;}
  if(b.dataset.provider){showPanel({type:'accounts',provider:b.dataset.provider});return;}
  if(b.dataset.delete){await mutate({action:'deleteCollection',id:b.dataset.delete});return;}
- const actions={newExpense:()=>showPanel({type:'cashExpense',id:null}),deleteExpense:()=>deleteCashExpense(),back:goBack,forward:()=>navigation.forward(),categories:()=>showPanel({type:'categories'}),originalCategoryName:()=>{detailPage.querySelector('[name=name]').value=detailPage.querySelector('form').dataset.category;},close:()=>close(),discard:()=>{const resume=pendingLeave;pendingLeave=null;if(resume)resume();else close(true);},keepEditing:()=>{pendingLeave=null;$('#discard-changes').hidden=true;detailPage.querySelector('input,select')?.focus();},resetTransactions:()=>{category='';query='';transactionStatus='all';render();$('#search').focus();},resetCollectionFilters:()=>{collectionQuery='';seasonOnly=false;collectionKind='all';render();},accounts:()=>showPanel({type:'accounts'}),monthly:()=>showPanel({type:'monthly'}),costs:()=>showPanel({type:'costs'}),savings:()=>showPanel({type:'savings'}),spending:()=>navigate({page:'transactions',category:'',query:'',transactionStatus:'expenses',transactionLimit:80}),reviewTransfers:()=>navigate({page:'transactions',category:'',query:'',transactionStatus:'review',transactionLimit:80}),budgetOver:()=>navigate({page:'budget',budgetFilter:'over'}),crypto:()=>showPanel({type:'crypto'}),periodPicker:togglePeriodPicker,newBudget:()=>showPanel({type:'budget'}),allCollections:()=>navigate({period:'all',allCollections:false}),more:()=>{transactionLimit+=80;render();},undo:()=>mutate({action:'undo'})};
+ const actions={newExpense:()=>showPanel({type:'cashExpense',id:null}),deleteExpense:()=>deleteCashExpense(),back:goBack,forward:()=>navigation.forward(),categories:()=>showPanel({type:'categories'}),budgetYears:()=>showPanel({type:'budgetYears'}),originalCategoryName:()=>{detailPage.querySelector('[name=name]').value=detailPage.querySelector('form').dataset.category;},close:()=>close(),discard:()=>{const resume=pendingLeave;pendingLeave=null;if(resume)resume();else close(true);},keepEditing:()=>{pendingLeave=null;$('#discard-changes').hidden=true;detailPage.querySelector('input,select')?.focus();},resetTransactions:()=>{category='';query='';transactionStatus='all';render();$('#search').focus();},resetCollectionFilters:()=>{collectionQuery='';seasonOnly=false;collectionKind='all';render();},accounts:()=>showPanel({type:'accounts'}),monthly:()=>showPanel({type:'monthly'}),costs:()=>showPanel({type:'costs'}),savings:()=>showPanel({type:'savings'}),spending:()=>navigate({page:'transactions',category:'',query:'',transactionStatus:'expenses',transactionLimit:80}),reviewTransfers:()=>navigate({page:'transactions',category:'',query:'',transactionStatus:'review',transactionLimit:80}),budgetOver:()=>navigate({page:'budget',budgetFilter:'over'}),crypto:()=>showPanel({type:'crypto'}),periodPicker:togglePeriodPicker,newBudget:()=>showPanel({type:'budget'}),allCollections:()=>navigate({period:'all',allCollections:false}),more:()=>{transactionLimit+=80;render();},undo:()=>mutate({action:'undo'})};
  if(actions[b.dataset.action])await actions[b.dataset.action]();
 });
 document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&bpState){event.preventDefault();bpClose(true);return;}
  if(event.key==='Escape'&&$('#period-popover')&&!$('#period-popover').hidden){event.preventDefault();closePeriodPicker(true);return;}
  if(!event.target.matches('[data-trip-tab]')||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
  const tabs=[...detailPage.querySelectorAll('[data-trip-tab]')],current=tabs.indexOf(event.target),next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(current+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
@@ -737,6 +844,8 @@ document.addEventListener('input',event=>{
  if(event.target.id==='collection-search'){const caret=event.target.selectionStart;collectionQuery=event.target.value;render();$('#collection-search').focus();$('#collection-search').setSelectionRange(caret,caret);navigation.remember();}
 });
 document.addEventListener('change',async event=>{
+ if(event.target.name==='budgetFromMonth'||event.target.name==='budgetToMonth'){const row=event.target.closest('.budget-period'),kind=event.target.name.slice(0,-5),year=row?.querySelector(`[name=${kind}Year]`);if(year&&!event.target.value&&kind==='budgetTo')year.value='';else if(year&&event.target.value&&!year.value)year.value=row.querySelector('[name=budgetFromYear]')?.value||String(new Date().getFullYear());}
+ if(['budget-year-first','budget-year-second'].includes(event.target.id)){renderBudgetYearComparison();return;}
  if(event.target.name==='cashAccount'){updateCashAccount();return;}
  if(event.target.name==='splitKind'){const part=event.target.closest('.split-part'),select=part.querySelector('[name=splitPurchase]');if(event.target.value==='unresolved')select.value='';select.disabled=event.target.value==='unresolved';updateSplitTotal();return;}
  if(event.target.name==='operationType'){updateOperationForm();return;}
@@ -757,7 +866,7 @@ document.addEventListener('submit',async event=>{
   const payment={...old,id:form.dataset.id,description:data.get('paymentName'),date:data.get('paymentDate'),eur:toCents(data.get('paymentAmount'))*(data.get('paymentKind')==='refund'?-1:1),payer:data.get('paymentPayer'),payerName:data.get('paymentPayerName'),disposition:data.get('paymentKind')==='deposit'?'deposit':'expense',spendingType:data.get('paymentType'),linkedRowId:old?.linkedRowId||data.get('paymentLink')||undefined};
   await mutate({action:'collection',collection:{...c,payments:[...(c.payments??[]).filter(p=>p.id!==payment.id),payment]}});
  }
- if(form.id==='budget-form')await mutate({action:'budget',category:form.dataset.category||categoryKeys().find(c=>categoryName(c).toLocaleLowerCase('uk')===String(data.get('category')).trim().toLocaleLowerCase('uk'))||data.get('category'),from:`${data.get('fromYear')}-${data.get('fromMonth')}`,amount:toCents(data.get('amount'))});
+ if(form.id==='budget-form')await saveBudgetPeriods(form,data);
  if(form.id==='category-form')await mutate({action:'categoryName',category:form.dataset.category,name:data.get('name')});
  if(form.id==='row-form')await mutate({action:'row',id:form.dataset.id,category:data.get('category'),name:data.get('name'),note:data.get('note'),operationType:data.get('operationType'),excluded:data.get('operationType')!=='expense'});
  if(form.id==='collection-form')await mutate({action:'collection',collection:{...(workspace.state.collections.find(c=>c.id===form.dataset.id)??{}),...(workspace.state.collections.find(c=>c.id===form.dataset.id&&c.start===data.get('start')&&c.end===data.get('end'))?.dateLabel?{dateLabel:workspace.state.collections.find(c=>c.id===form.dataset.id).dateLabel}:{dateLabel:undefined,datePrecision:undefined}),purchaseDetails:purchaseItemsFromForm(form),id:form.dataset.id,name:data.get('name'),kind:data.get('kind'),start:data.get('start'),end:data.get('end'),budget:data.get('budget')===''?null:toCents(data.get('budget')),note:data.get('note'),season:data.has('season'),archived:data.get('kind')==='purchase'?data.has('archived'):undefined,rowIds:[...selectedRowIds],manualPayment:data.get('manualAmount')?{date:data.get('manualDate'),eur:toCents(data.get('manualAmount'))}:null,referenceAmount:form.dataset.reference===''?null:Number(form.dataset.reference)}});

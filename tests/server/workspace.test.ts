@@ -163,6 +163,7 @@ describe('encrypted workspace and protected HTTP',()=>{
   try{
    expect((await fetch(origin+'/api/workspace')).status).toBe(401);
    expect((await fetch(origin+'/api/annual-comparison?mode=calendar&year=2090')).status).toBe(401);
+   expect((await fetch(origin+'/api/budget-years')).status).toBe(401);
    const badHost = await new Promise<number|undefined>(done=>get(origin,{headers:{Host:'evil.invalid'}},response=>{response.resume();done(response.statusCode);}));
    expect(badHost).toBe(403);
    expect((await fetch(origin,{headers:{Origin:'https://evil.invalid'}})).status).toBe(403);
@@ -173,6 +174,9 @@ describe('encrypted workspace and protected HTTP',()=>{
    expect((await fetch(origin+'/moneywave-mark.png',{headers:{Origin:'https://evil.invalid'}})).status).toBe(403);
    expect((await fetch(origin+'/unknown.png',{headers:{Cookie:cookie}})).status).toBe(404);
    const data=await (await fetch(origin+'/api/workspace',{headers:{Cookie:cookie}})).json();
+   const budgetComparison=await(await fetch(origin+'/api/budget-years',{headers:{Cookie:cookie}})).json();
+   expect(budgetComparison.revision).toBe(data.revision);
+   expect(budgetComparison.years).toContainEqual(expect.objectContaining({year:2090,plan:156000,actual:11800,complete:false,variance:null}));
    const yearComparison=await(await fetch(origin+'/api/annual-comparison?mode=calendar&year=2090',{headers:{Cookie:cookie}})).json();
    expect(yearComparison.current.net).toBe(11800);expect(yearComparison.previous.net).toBeNull();expect(yearComparison.delta).toBeNull();
    expect((await fetch(origin+'/api/annual-comparison?mode=trailing&asOf=2090-02-30',{headers:{Cookie:cookie}})).status).toBe(400);

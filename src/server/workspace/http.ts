@@ -9,6 +9,7 @@ import { annualComparison, annualComparisonSchema, collectionTotals, comparisonF
 import {withCryptoHistory} from './crypto-history';
 import { includeWorkspacePosition } from './capital';
 import { savingsView } from './savings';
+import { budgetYears } from './budget-years';
 import { addCryptoToCapital, type CryptoStore } from './crypto';
 import type { FinanceCenters } from '@/server/read-model/finance-centers';
 
@@ -84,6 +85,10 @@ export function createWorkspaceServer(options: {store:WorkspaceStore; centers:Pi
         return reply(res,200,{...await savingsView(options.centers,report,state,url.searchParams.get('period') ?? '',currentDate),revision});
       }
       if (req.method === 'GET' && url.pathname === '/api/history') return reply(res,200,await options.store.history());
+      if (req.method === 'GET' && url.pathname === '/api/budget-years') {
+        const {report,state,revision}=await options.store.read();
+        return reply(res,200,{revision,years:budgetYears(report,state,(options.now?.()??new Date()).toISOString().slice(0,10))});
+      }
       if (req.method === 'GET' && url.pathname === '/api/annual-comparison') {
         const request = annualComparisonSchema.parse({mode:url.searchParams.get('mode'),year:Number(url.searchParams.get('year')),asOf:url.searchParams.get('asOf')});
         const {report,state,revision} = await options.store.read();
