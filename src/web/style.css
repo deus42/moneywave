@@ -628,7 +628,6 @@ body{font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}
 .review-item:first-of-type{padding-top:0}.review-item strong{display:block;font-size:13px;font-weight:550;line-height:1.5}
 .review-item small{display:block;font-size:11px;color:var(--muted);line-height:1.6;margin-top:4px}.review-item>span:last-child{color:var(--green);font-size:18px}
 .review-empty{margin-top:0;max-width:300px;line-height:1.7}
-.recent-operations{padding-top:26px}.recent-operations .section-head{margin-bottom:12px}
 .transactions .native-amount{font-size:11px;white-space:nowrap;margin-top:4px}.transactions td:last-child{white-space:nowrap}
 .transactions .subline{font-size:11px}.transaction-toolbar{padding-top:4px}.subscription-breakdown{margin:22px 0}
 .strip{padding:0 0 20px;border:0;gap:50px}.strip strong{font-size:32px;font-weight:600;letter-spacing:-.8px}.strip .label{font-size:12px}
@@ -698,7 +697,6 @@ body{font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}
  .preview-table th{font-size:10px!important;padding:8px 4px!important}.preview-table td{font-size:12px!important;padding:12px 4px!important}
  .preview-table th:first-child,.preview-table td:first-child{width:34%}.preview-table td button{font-size:12px}.preview-table td:last-child{white-space:normal}
  .review-item{min-height:68px}.review-item strong{font-size:14px}.review-item small{font-size:12px}
- .recent-operations{padding-top:24px}.recent-operations .section-head{align-items:center}.recent-operations .section-head .link{font-size:12px}
  .transactions .native-amount{font-size:10px}.transactions td:last-child{font-size:15px!important}
  .strip{gap:22px;padding-bottom:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}.strip>div{min-width:0}
  .strip strong{font-size:25px;letter-spacing:-.7px}.strip .label{font-size:11px}
@@ -818,8 +816,12 @@ body{font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}
 .ov-holding:hover .ov-holding-name{color:var(--green)}
 .capital-overview .asset-missing{margin-top:8px}
 
-.ov-trend{margin-top:22px}
-.ov-trend-head{display:flex;justify-content:space-between;gap:12px;margin-bottom:10px;font-size:12px;color:var(--muted)}
+.capital-trends{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:30px;margin-top:26px;padding-top:24px;border-top:1px solid var(--line)}
+.ov-trend{--ov-trend-color:var(--green);min-width:0;break-inside:avoid}
+.ov-trend-investments{--ov-trend-color:var(--ov-c0)}
+.ov-trend-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:4px 12px;margin-bottom:12px;font-size:12px;color:var(--muted)}
+.ov-trend-head h3{display:flex;align-items:center;gap:8px;margin:0;font-size:13px;font-weight:600;color:var(--ink)}
+.ov-trend-head .ov-dot{background:var(--ov-trend-color)}
 .ov-plot{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:140px auto;column-gap:12px}
 .ov-plot-bars{grid-template-rows:190px auto}
 .ov-plot svg{display:block;width:100%;height:100%;overflow:visible}
@@ -827,13 +829,12 @@ body{font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}
 .ov-x{grid-column:1;display:flex;margin-top:8px}
 .ov-x span{flex:1;min-width:0;font-size:11.5px;color:var(--muted);text-align:center;white-space:nowrap}
 .ov-grid{fill:none;stroke:var(--line);stroke-width:1;stroke-dasharray:3 4;vector-effect:non-scaling-stroke}
-.ov-area{fill:url(#ov-area)}
-.ov-stop-top{stop-color:var(--green);stop-opacity:.18}
-.ov-stop-bottom{stop-color:var(--green);stop-opacity:0}
-.ov-line{fill:none;stroke:var(--green);stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
-.ov-end{fill:none;stroke:var(--green);stroke-width:8;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.ov-stop-top{stop-color:var(--ov-trend-color);stop-opacity:.18}
+.ov-stop-bottom{stop-color:var(--ov-trend-color);stop-opacity:0}
+.ov-line{fill:none;stroke:var(--ov-trend-color);stroke-width:2.25;stroke-linejoin:round;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.ov-end{fill:none;stroke:var(--ov-trend-color);stroke-width:8;stroke-linecap:round;vector-effect:non-scaling-stroke}
 .ov-hit{fill:transparent}
-.ov-hit:hover{fill:var(--green);fill-opacity:.07}
+.ov-hit:hover{fill:var(--ov-trend-color,var(--green));fill-opacity:.07}
 .ov-bar-income{fill:var(--green)}
 .ov-bar-spend{fill:var(--ov-spend)}
 .ov-months,.ov-budget{margin-top:26px;padding-top:24px;border-top:1px solid var(--line)}
@@ -868,6 +869,7 @@ table.data.ov-budget-table td small{display:block;margin-top:1px;font-size:11.5p
 
 @media(max-width:900px){.ov-holdings{grid-template-columns:1fr}}
 @media(max-width:700px){
+ .capital-trends{grid-template-columns:1fr;gap:26px}
  .ov-plot{grid-template-rows:120px auto}
  .ov-plot-bars{grid-template-rows:150px auto}
  .ov-legend{gap:6px 12px}
@@ -1036,10 +1038,35 @@ table.data.sv-month-table td,table.data.sv-accounts td{white-space:nowrap}
 table.data.sv-accounts td:first-child{white-space:normal}
 @media(max-width:700px){table.data.sv-month-table th:nth-child(5),table.data.sv-month-table td:nth-child(5){display:none}}
 
+/* Compact page top: title, report status and period selector share one row. */
+.workspace{padding-top:20px}
+.masthead{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;column-gap:28px;margin-bottom:22px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.masthead>.topbar{grid-column:1/-1}
+.masthead>#page-heading{grid-column:1;display:flex;align-items:center;gap:12px;min-width:0}
+.masthead>#periods{grid-column:2;min-width:0}
+.masthead:has(#page-heading[hidden])>#periods{grid-column:1/-1}
+#page-heading .head{margin:0;gap:16px}
+#page-heading h1{font-size:28px;line-height:1.2}
 .budget-heading-actions{display:flex;align-items:center;gap:2px;flex:none}
 .budget-heading-action{display:grid;place-items:center;width:40px;height:40px;padding:0;color:var(--muted);border-radius:8px}
 .budget-heading-action:hover{background:var(--soft);color:var(--green)}
 .budget-heading-action svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#page-heading .status-note{margin:0;padding:3px 9px;border-radius:99px;background:#fbeee9;color:var(--red);font-size:12px;white-space:nowrap}
+.period-toolbar{margin:0;padding:0;border-bottom:0}
+.capital-amount{font-size:46px;letter-spacing:-1.8px;margin:6px 0 12px}
+.capital-incomplete{margin:-6px 0 14px}
+.flow-coverage{margin:4px 0 14px}
+.period-flow .line{padding:8px 0}
+.period-flow .line strong{font-size:22px}
+.period-flow .line.total-line{margin-top:8px;padding-top:12px}
+.period-flow .total-line strong{font-size:26px}
+@media(max-width:700px){
+ .masthead{grid-template-columns:1fr;row-gap:10px;margin-bottom:18px;padding-bottom:12px}
+ .masthead>#periods{grid-column:1}
+ #page-heading h1{font-size:24px}
+ .capital-amount{font-size:38px}
+}
+
 /* Trip creation belongs with the list controls. */
 .trip-toolbar .select{margin-left:auto}
 .trip-toolbar .button{flex-shrink:0;white-space:nowrap;min-height:40px}
