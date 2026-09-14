@@ -136,6 +136,8 @@ Each explicit cash expense contributes once to its dated expense/category totals
 
 The local report accepts full history, calendar year/month and `last12`. The rolling preset selects the current calendar month and eleven prior months using the server clock. The response carries requested and available ranges so every flow, budget, cost, collection and transaction surface uses the same boundary. Missing months remain partial; empty rolling windows have no available range. Monthly budgets and undated monthly refunds retain their existing month precision. Capital uses the requested period end, bounded by today, independently of transaction coverage. All-history and rolling views use today. Neither period navigation nor the rolling selector writes financial history.
 
+The shared calendar also includes collection dates outside cashflow coverage. Historical trips can be selected by year or month and appear in full history without adding artificial report months, income, budget limits or cashflow expenses. A collection-only period returns an empty cashflow view with no available range; trip costs retain their own evidence and totals.
+
 
 ## Monthly capital valuation evidence
 

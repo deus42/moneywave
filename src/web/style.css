@@ -439,7 +439,10 @@ table.data td{padding:13px 10px;font-size:13px}
 .journey-cost{margin:0;gap:5px;align-items:flex-end;text-align:right}
 .journey-cost strong{font-size:25px;letter-spacing:-.7px;font-weight:550}
 .journey-cost small{font-size:11px;color:var(--muted);line-height:1.5}.journey-cost small.red{color:var(--red)}
-.journey-year-heading{margin:24px 0 4px}.journey-year-heading h2{font-size:17px}
+.journey-year-heading{align-items:center;gap:12px;margin:28px 0 2px;padding:14px 16px;background:var(--soft);border-inline-start:3px solid var(--muted)}
+.journey-year-heading h2{font-size:18px;font-weight:650;letter-spacing:-.3px}
+.journey-year-total{flex-direction:column;align-items:flex-end;gap:4px;min-width:0}
+.journey-year-total strong{font-size:22px;font-weight:650;white-space:nowrap}
 .journey-detail .journey-hero{background:transparent;border-block:1px solid var(--line);border-radius:0;padding:24px 0;gap:24px}
 .journey-hero-budget{border-color:var(--line);padding-left:24px}
 .journey-detail .journey-own strong{font-size:40px}.journey-own>span,.journey-hero-budget>span{font-size:12px}

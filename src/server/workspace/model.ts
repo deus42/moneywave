@@ -197,6 +197,7 @@ export function reportingCoverage(report: WorkspaceReport, state: WorkspaceState
   result.months.sort((a,b)=>a.month.localeCompare(b.month));
   return result;
 }
+/** Collection dates are navigable even when there is no cashflow report for them. */
 export function workspaceCalendar(report: WorkspaceReport, state: WorkspaceState) {
   const covered=reportingCoverage(report,state),months=new Set(covered.months.map(m=>m.month));
   let from=covered.coverage.start,to=covered.coverage.end;

@@ -357,9 +357,9 @@ function collectionSummary(selected,budgetCategory=null) {
 }
 function tripCollections() {
  const selected=selectedCollections('trip');
- const years=[...new Set(selected.map(c=>c.start.slice(0,4)))];
+ const years=[...new Set(selected.map(c=>c.end.slice(0,4)))];
  const groups=years.map(year=>{
-  const trips=selected.filter(c=>c.start.startsWith(year)),total=trips.reduce((sum,c)=>sum+totals(c).net,0);
+  const trips=selected.filter(c=>c.end.startsWith(year)),total=trips.reduce((sum,c)=>sum+totals(c).net,0);
   return `<section class="journey-year">${period==='all'||allCollections?`<div class="journey-year-heading"><h2>${year}</h2><div class="journey-year-total"><span>Разом за рік</span><strong data-private>${euro(total,2)}</strong></div></div>`:''}<div class="journey-grid">${trips.map(tripCard).join('')}</div></section>`;
  }).join('');
  return heading('Поїздки')+collectionToolbar('trip')+collectionSummary(selected,'Відпустки та подорожі')+(selected.length?groups:collectionEmpty('trip'));
