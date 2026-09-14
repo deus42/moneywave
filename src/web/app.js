@@ -21,7 +21,8 @@ let transactionLimit=80, budgetFilter='all', budgetSort='overspend', collectionQ
 const selectedCapital=()=>view.capital;
 const inPeriod=value=>value.slice(0,7)>=view.range.from.slice(0,7)&&value.slice(0,7)<=view.range.to.slice(0,7);
 const calendarMonths=()=>workspace.calendar?.months??workspace.report.months.map(m=>m.month);
-const validPeriod=value=>value==='all'||value==='last12'||calendarMonths().some(m=>m===value||m.slice(0,4)===value);
+const monthRange=value=>{const match=/^(\d{4}-(?:0[1-9]|1[0-2]))\.\.(\d{4}-(?:0[1-9]|1[0-2]))$/u.exec(value??'');return match&&match[1]<=match[2]?{from:match[1],to:match[2]}:null;};
+const validPeriod=value=>{if(value==='all'||value==='last12')return true;const range=monthRange(value);return range?calendarMonths().some(m=>m>=range.from&&m<=range.to):calendarMonths().some(m=>m===value||m.slice(0,4)===value);};
 const nativeAmount=r=>r.nativeMinor!=null&&r.currency?`${new Intl.NumberFormat('uk-UA',{maximumFractionDigits:2}).format(Math.abs(Number(r.nativeMinor))/100)} ${r.currency}`:null;
 const usd=minor=>minor===null?'—':new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(minor/100);
 const detailPage = $('#detail-page');
@@ -92,26 +93,49 @@ async function mutate(change) {
   try { await api('/api/change',{...change,revision:workspace.revision});await reload();close(true);notice('Збережено'); }
   catch(error){formError(error);}finally{buttons.forEach(b=>b.disabled=false);}
 }
-function titlePeriod() { return period==='all'?'Весь період':period==='last12'?'Останні 12 місяців':period.length===4 ? period : `${fullMonths[Number(period.slice(5))-1]} ${period.slice(0,4)}`; }
+function titlePeriod() { const range=monthRange(period);if(range)return `${monthNames[Number(range.from.slice(5))-1]} ${range.from.slice(0,4)} — ${monthNames[Number(range.to.slice(5))-1]} ${range.to.slice(0,4)}`;return period==='all'?'Весь період':period==='last12'?'Останні 12 місяців':period.length===4 ? period : `${fullMonths[Number(period.slice(5))-1]} ${period.slice(0,4)}`; }
 const periodIcons={prev:'<path d="m15 18-6-6 6-6"/>',next:'<path d="m9 18 6-6-6-6"/>',down:'<path d="m6 9 6 6 6-6"/>',check:'<path d="M20 6 9 17l-5-5"/>',calendar:'<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M7 3v4M17 3v4M3 11h18"/>'};
 const periodIcon=(name,cls='')=>`<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${periodIcons[name]}</svg>`;
-function periodCalendar(year) {
- const years=[...new Set(calendarMonths().map(m=>m.slice(0,4)))],index=years.indexOf(year),today=view.currentCapital.asOf.slice(0,7);
- const inRange=p=>period==='last12'&&p>=view.range.from.slice(0,7)&&p<=view.range.to.slice(0,7);
- return `<div class="period-calendar-heading"><button type="button" class="period-year-step" data-calendar-year="${years[index-1]??''}" aria-label="Попередній рік" ${index>0?'':'disabled'}>${periodIcon('prev')}</button><strong aria-live="polite">${year}</strong><button type="button" class="period-year-step" data-calendar-year="${years[index+1]??''}" aria-label="Наступний рік" ${index>=0&&index<years.length-1?'':'disabled'}>${periodIcon('next')}</button></div><button class="period-option period-year-option" data-period="${year}" aria-pressed="${period===year}">Весь ${year} рік</button><div class="period-month-grid" role="group" aria-label="Місяці ${year}">${monthNames.map((label,i)=>{const p=`${year}-${String(i+1).padStart(2,'0')}`;return `<button class="period-option period-month${p===today?' is-current':''}${inRange(p)?' in-range':''}" data-period="${p}" aria-label="${fullMonths[i]} ${year}" aria-pressed="${period===p}" ${validPeriod(p)?'':'disabled'}>${label}</button>`;}).join('')}</div>`;
+let rangeAnchor=null;
+const shiftMonthKey=(month,n)=>new Date(Date.UTC(Number(month.slice(0,4)),Number(month.slice(5,7))-1+n,1)).toISOString().slice(0,7);
+const monthCount=(from,to)=>(Number(to.slice(0,4))-Number(from.slice(0,4)))*12+Number(to.slice(5,7))-Number(from.slice(5,7))+1;
+function periodNeighbours(years){
+ const range=monthRange(period);
+ if(range){const n=monthCount(range.from,range.to),prev=`${shiftMonthKey(range.from,-n)}..${shiftMonthKey(range.to,-n)}`,next=`${shiftMonthKey(range.from,n)}..${shiftMonthKey(range.to,n)}`;return [validPeriod(prev)?prev:null,validPeriod(next)?next:null];}
+ const adjacent=period.length===4?years:calendarMonths(),index=adjacent.indexOf(period);
+ return [adjacent[index-1]??null,index>=0?adjacent[index+1]??null:null];
 }
+function periodCalendar(year) {
+ const years=[...new Set(calendarMonths().map(m=>m.slice(0,4)))],right=years.includes(year)?year:years.at(-1),index=years.indexOf(right),left=years[index-1]??null,today=view.currentCapital.asOf.slice(0,7),available=new Set(calendarMonths());
+ const selected=rangeAnchor?{from:rangeAnchor,to:rangeAnchor}:period==='all'?null:{from:view.range.from.slice(0,7),to:view.range.to.slice(0,7)};
+ const grid=y=>`<div class="period-year-block"><div class="period-year-head"><strong>${y}</strong><button type="button" class="period-option period-year-option" data-period="${y}" aria-pressed="${period===y}" ${validPeriod(y)?'':'disabled'}>Весь рік</button></div><div class="period-month-grid" role="group" aria-label="Місяці ${y}">${monthNames.map((label,i)=>{
+  const p=`${y}-${String(i+1).padStart(2,'0')}`,inside=!!selected&&p>=selected.from&&p<=selected.to;
+  const cls=[p===today?'is-current':'',selected&&p===selected.from?'is-start':'',selected&&p===selected.to?'is-end':'',inside&&p!==selected.from&&p!==selected.to?'in-range':''].filter(Boolean).join(' ');
+  return `<button type="button" class="period-option period-month ${cls}" data-range-month="${p}" aria-label="${fullMonths[i]} ${y}" aria-pressed="${inside}" ${available.has(p)?'':'disabled'}>${label}</button>`;
+ }).join('')}</div></div>`;
+ const hint=rangeAnchor?`З ${monthNames[Number(rangeAnchor.slice(5))-1]} ${rangeAnchor.slice(0,4)} — обери кінець`:'Обери початок і кінець діапазону';
+ return `<div class="period-range-picker" data-right="${right}"><div class="period-calendar-heading"><button type="button" class="period-year-step" data-calendar-year="${years[index-1]??''}" aria-label="Попередній рік" ${index>0?'':'disabled'}>${periodIcon('prev')}</button><span class="period-range-hint" aria-live="polite">${hint}</span><button type="button" class="period-year-step" data-calendar-year="${years[index+1]??''}" aria-label="Наступний рік" ${index>=0&&index<years.length-1?'':'disabled'}>${periodIcon('next')}</button></div><div class="period-years">${left?grid(left):''}${grid(right)}</div></div>`;
+}
+function previewRange(target){
+ const month=target?.closest?.('[data-range-month]')?.dataset.rangeMonth;
+ if(!rangeAnchor||!month)return;
+ const [from,to]=[rangeAnchor,month].sort();
+ document.querySelectorAll('#period-calendar [data-range-month]').forEach(el=>{const m=el.dataset.rangeMonth;el.classList.toggle('in-preview',m>from&&m<to);el.classList.toggle('is-preview-end',m===month&&m!==rangeAnchor);});
+}
+document.addEventListener('mouseover',event=>previewRange(event.target));
+document.addEventListener('focusin',event=>previewRange(event.target));
 function renderPeriods() {
  const years=[...new Set(calendarMonths().map(m=>m.slice(0,4)))],today=view.currentCapital.asOf,currentMonth=today.slice(0,7),currentYear=today.slice(0,4);
  const priorMonth=new Date(Date.UTC(Number(currentYear),Number(today.slice(5,7))-2,1)).toISOString().slice(0,7);
- const year=/^\d{4}/.test(period)?period.slice(0,4):years.includes(currentYear)?currentYear:years.at(-1);
+ const year=monthRange(period)?.to.slice(0,4)??(/^\d{4}/.test(period)?period.slice(0,4):years.includes(currentYear)?currentYear:years.at(-1));
  const short=m=>`${monthNames[Number(m.slice(5))-1]} ${m.slice(0,4)}`;
  const choices=[['Цей місяць',currentMonth,short(currentMonth)],['Минулий місяць',priorMonth,short(priorMonth)],['Цей рік',currentYear,currentYear],['Останні 12 місяців','last12','12 міс.'],['Весь період','all',`з ${years[0]}`]];
- const adjacent=period.length===4?years:calendarMonths(),index=adjacent.indexOf(period),prev=adjacent[index-1],next=index>=0?adjacent[index+1]:null;
+ const [prev,next]=periodNeighbours(years);
  $('#periods').innerHTML=`<div class="period-toolbar"><div class="period-control"><div class="period-bar"><button id="period-previous" class="period-step" data-period="${prev??''}" aria-label="Попередній період" ${prev?'':'disabled'}>${periodIcon('prev')}</button><button id="period-trigger" class="period-trigger" data-action="periodPicker" aria-haspopup="dialog" aria-expanded="false" aria-controls="period-popover">${periodIcon('calendar','period-icon')}<span class="period-trigger-text"><strong>${esc(titlePeriod())}</strong><small>${date(view.range.from)} — ${date(view.range.to)}</small></span>${periodIcon('down','period-chevron')}</button><button id="period-next" class="period-step" data-period="${next??''}" aria-label="Наступний період" ${next?'':'disabled'}>${periodIcon('next')}</button></div><div id="period-popover" class="period-popover" role="dialog" aria-label="Вибрати період" hidden><div class="period-presets" role="group" aria-label="Швидкий вибір"><span class="period-label">Швидкий вибір</span>${choices.map(([label,value,hint])=>`<button class="period-option period-preset" data-period="${value}" aria-pressed="${period===value}" ${validPeriod(value)?'':'disabled'}><span>${label}</span><small>${esc(hint)}</small>${periodIcon('check','period-check')}</button>`).join('')}</div><div id="period-calendar" class="period-calendar">${periodCalendar(year)}</div></div></div></div>`;
 }
 function closePeriodPicker(focus=false) {
  const popover=$('#period-popover');if(!popover||popover.hidden)return;
- popover.hidden=true;$('#period-trigger').setAttribute('aria-expanded','false');
+ rangeAnchor=null;popover.hidden=true;$('#period-trigger').setAttribute('aria-expanded','false');
  if(focus)$('#period-trigger').focus({preventScroll:true});
 }
 function togglePeriodPicker() {
@@ -258,7 +282,7 @@ function subscriptionTable(rows=view.rows) {
 }
 function budgetPeriodRange() { return view.availableRange??view.range; }
 
-function budgetComparisonLabel(){return period==='all'?'Порівняння':period==='last12'?'До попередніх 12 місяців':period.length===4?'До минулого року':'До минулого місяця';}
+function budgetComparisonLabel(){return period==='all'?'Порівняння':period==='last12'?'До попередніх 12 місяців':monthRange(period)?'До того ж періоду торік':period.length===4?'До минулого року':'До минулого місяця';}
 const pencilIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4z"/></svg>';
 function budgetDifference(c) {
  if(!c.plan)return '<span class="muted">—</span>';
@@ -679,6 +703,7 @@ document.addEventListener('click',async event=>{
  if(b.dataset.tripTab){await showPanel({type:'collection',id:b.dataset.tripOwner,tab:b.dataset.tripTab});detailPage.querySelector(`[data-trip-tab="${b.dataset.tripTab}"]`)?.focus({preventScroll:true});return;}
  if(b.dataset.removePayment){const c=workspace.state.collections.find(x=>x.id===b.dataset.paymentOwner);if(c)await mutate({action:'collection',collection:{...c,payments:(c.payments??[]).filter(p=>p.id!==b.dataset.removePayment)}});return;}
  if(b.dataset.page){if(b.dataset.page!==page||activePanel)await navigate({page:b.dataset.page,query:'',category:'',collectionQuery:'',collectionKind:'all',transactionStatus:'all',allCollections:false,seasonOnly:false,transactionLimit:80});return;}
+ if(b.dataset.rangeMonth){const month=b.dataset.rangeMonth;if(!rangeAnchor){rangeAnchor=month;$('#period-calendar').innerHTML=periodCalendar($('#period-calendar .period-range-picker')?.dataset.right);$(`[data-range-month="${month}"]`)?.focus({preventScroll:true});return;}const [from,to]=[rangeAnchor,month].sort();rangeAnchor=null;const next=from===to?from:from.slice(0,4)===to.slice(0,4)&&from.slice(5)==='01'&&to.slice(5)==='12'?from.slice(0,4):`${from}..${to}`;closePeriodPicker(true);if(next!==period||allCollections||activePanel)await navigate({period:next,allCollections:false,scroll:window.scrollY,focus:'#period-trigger'});return;}
  if(b.dataset.calendarYear){const label=b.getAttribute('aria-label');$('#period-calendar').innerHTML=periodCalendar(b.dataset.calendarYear);const same=$('#period-calendar').querySelector(`[aria-label="${label}"]`);(same&&!same.disabled?same:$('#period-calendar .period-year-option')).focus({preventScroll:true});return;}
  if(b.dataset.period){closePeriodPicker(true);if(b.dataset.period!==period||allCollections||activePanel)await navigate({period:b.dataset.period,allCollections:false,scroll:window.scrollY,focus:b.id===''?'#period-trigger':'#'+CSS.escape(b.id)});return;}
  if(b.dataset.budgetFilter){budgetFilter=b.dataset.budgetFilter;render();document.querySelector(`[data-budget-filter="${budgetFilter}"]`)?.focus({preventScroll:true});return;}

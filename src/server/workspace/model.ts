@@ -209,8 +209,15 @@ export function workspaceCalendar(report: WorkspaceReport, state: WorkspaceState
   }
   return {months:[...months].sort(),range:{from,to}};
 }
+const monthRangePattern = /^(\d{4}-(?:0[1-9]|1[0-2]))\.\.(\d{4}-(?:0[1-9]|1[0-2]))$/u;
+const monthSpan = (range:{from:string;to:string}) => (Number(range.to.slice(0,4))-Number(range.from.slice(0,4)))*12+Number(range.to.slice(5,7))-Number(range.from.slice(5,7))+1;
 function reportingRange(period:string, coverage:WorkspaceReport['coverage'], today:string) {
   if (period === 'all') return {from:coverage.start,to:coverage.end};
+  const custom = monthRangePattern.exec(period);
+  if (custom) {
+    if (custom[1] > custom[2]) throw new Error('PERIOD_INVALID');
+    return {from:`${custom[1]}-01`,to:monthEnd(custom[2])};
+  }
   if (period === 'last12') {
     day.parse(today);
     const year=Number(today.slice(0,4)),month=Number(today.slice(5,7))-1;
@@ -221,7 +228,7 @@ function reportingRange(period:string, coverage:WorkspaceReport['coverage'], tod
 }
 export function comparisonFor(report: WorkspaceReport, state: WorkspaceState, period: string, end: string, today=new Date().toISOString().slice(0,10)) {
   if (period === 'all') return null;
-  const range=reportingRange(period,report.coverage,today),annual=period.length===4||period==='last12';
+  const range=reportingRange(period,report.coverage,today),annual=period.length===4||period==='last12'||monthRangePattern.test(period);
   if (period==='last12' && end.slice(0,7)!==today.slice(0,7)) return null;
   const start = period==='last12'?range.from:[range.from, report.coverage.start].sort().at(-1)!;
   const shift = (day: string) => {
@@ -274,7 +281,7 @@ export function summary(report: WorkspaceReport, state: WorkspaceState, period: 
     plan: exactSum(categories.map(c => c.plan)), remainder: income - net - tax - bank,
     unknown: exactSum(months.map(m => m.unknown)) - exactSum(rows.filter(r => r.unresolved).map(r => r.eur)),
     correctionDelta: exactSum(rows.map(r => r.eur)) - exactSum(original.map(r => r.eur)),
-    partial: months.some(m => m.partial) || ((period.length === 4 || period==='last12') && months.length !== 12),
+    partial: months.some(m => m.partial) || ((period.length === 4 || period==='last12') && months.length !== 12) || (monthRangePattern.test(period) && months.length !== monthSpan(range)),
   };
 }
 export function collectionTotals(c: Collection, rows: ReportRow[]) {
