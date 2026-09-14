@@ -762,30 +762,32 @@ async function showBudgetYears(){
  const current=Number((workspace.today??new Date().toISOString()).slice(0,4)),last=budgetYearsData.filter(y=>y.year<=current).at(-1)??budgetYearsData.at(-1),prior=budgetYearsData.filter(y=>y.year<last.year).at(-1)??last;
  const first=activePanel?.firstYear??prior.year,second=activePanel?.secondYear??last.year;
  const options=value=>budgetYearsData.map(y=>`<option value="${y.year}" ${y.year===value?'selected':''}>${y.year}</option>`).join('');
+ const dash='<span class="muted">—</span>';
  const yearRow=y=>{
   const status=y.complete?'Повний рік':y.actual===null?'Факту ще немає':`Неповний · ${y.coveredMonths} міс.`;
-  const num=(label,value)=>`<div class="by-year-num"><span>${label}</span><b>${value}</b></div>`;
-  return `<div class="by-year${y.complete?'':' is-partial'}"><div class="by-year-name"><strong>${y.year}</strong><small>${status}</small></div><div class="by-year-bar">${y.plan>0&&y.actual!==null?budgetBar({plan:y.plan,actual:y.actual}):'<span class="muted">—</span>'}</div>${num('Факт',euro(y.actual))}${num('План на рік',euro(y.plan))}${num('Відхилення',budgetVariance(y.variance))}${num('Сер. / міс.',y.monthlyActual===null?'—':euro(y.monthlyActual))}</div>`;
+  return `<tr class="${y.complete?'':'is-partial'}"><th><strong>${y.year}</strong><small>${status}</small></th><td class="by-yr-bar">${y.plan>0&&y.actual!==null?budgetBar({plan:y.plan,actual:y.actual}):dash}</td><td>${euro(y.actual)}</td><td>${euro(y.plan)}</td><td>${y.variance===null?dash:budgetVariance(y.variance)}</td><td>${y.monthlyActual===null?dash:euro(y.monthlyActual)}</td></tr>`;
  };
- open('Бюджети за роками',`<p class="quiet by-intro">Факт проти плану на весь рік. Для неповних років відхилення ще не визначене.</p><div class="by-years">${budgetYearsData.map(yearRow).join('')}</div><section class="by-compare"><div class="section-head"><h2>Порівняння років</h2><div class="by-compare-pick"><select id="budget-year-first" aria-label="Перший рік">${options(first)}</select><span aria-hidden="true">→</span><select id="budget-year-second" aria-label="Другий рік">${options(second)}</select></div></div><div id="budget-year-comparison"></div></section>`);
+ open('Бюджети за роками',`<p class="quiet by-intro">Факт проти плану на весь рік. Для неповних років відхилення ще не визначене.</p><div class="table-wrap by-years"><table class="data by-years-table"><colgroup><col class="by-col-year"><col class="by-col-bar"><col span="4"></colgroup><thead><tr><th>Рік</th><th>Виконання плану</th><th>Факт</th><th>План на рік</th><th>Відхилення</th><th>Сер. / міс.</th></tr></thead><tbody>${budgetYearsData.map(yearRow).join('')}</tbody></table></div><section class="by-compare"><div class="section-head"><h2>Порівняння років</h2><div class="by-compare-pick"><select id="budget-year-first" aria-label="Перший рік">${options(first)}</select><span aria-hidden="true">→</span><select id="budget-year-second" aria-label="Другий рік">${options(second)}</select></div></div><div id="budget-year-comparison"></div></section>`);
  renderBudgetYearComparison();
 }
 function renderBudgetYearComparison(){
  const first=Number($('#budget-year-first').value),second=Number($('#budget-year-second').value),a=budgetYearsData.find(y=>y.year===first),b=budgetYearsData.find(y=>y.year===second);
  if(!a||!b)return;
  if(activePanel){activePanel.firstYear=first;activePanel.secondYear=second;navigation.remember();}
- const comparable=a.complete&&b.complete;
+ const comparable=a.complete&&b.complete,dash='<span class="muted">—</span>';
  const pick=(year,category)=>year.categories.find(c=>c.category===category)??{plan:0,actual:year.actual===null?null:0};
  const rows=[...new Set([...a.categories.map(c=>c.category),...b.categories.map(c=>c.category)])].map(category=>({category,x:pick(a,category),y:pick(b,category)}))
   .sort((p,q)=>(q.y.plan-p.y.plan)||((q.y.actual??0)-(p.y.actual??0))||categoryName(p.category).localeCompare(categoryName(q.category),'uk'));
- const cells=(x,y,fact)=>{
-  const before=fact?x.actual:x.plan,after=fact?y.actual:y.plan;
-  const change=fact?(comparable&&before!==null&&after!==null?budgetVariance(after-before):'<span class="muted">—</span>'):`<span class="${after-before===0?'muted':''}">${signedEuro(after-before)}</span>`;
-  return `<td>${euro(before)}</td><td>${euro(after)}</td><td class="by-delta">${change}</td>`;
+ const yearCells=(year,v,sep)=>{const cls=[sep?'by-sep':'',year.complete&&v.actual!==null&&v.actual>v.plan?'by-over':''].filter(Boolean).join(' ');return `<td${cls?` class="${cls}"`:''}>${euro(v.actual)}</td><td>${euro(v.plan)}</td>`;};
+ const change=(x,y)=>{
+  const plan=y.plan-x.plan,planCell=plan===0?dash:signedEuro(plan);
+  const fact=x.actual!==null&&y.actual!==null?y.actual-x.actual:null,factCell=fact===null||fact===0?dash:budgetVariance(fact);
+  return comparable?`<td class="by-sep">${factCell}</td><td>${planCell}</td>`:`<td class="by-sep">${planCell}</td>`;
  };
+ const row=(label,x,y)=>`<tr><th class="by-cat">${label}</th>${yearCells(a,x,false)}${yearCells(b,y,true)}${change(x,y)}</tr>`;
  const mark=year=>`${year.year}${year.complete?'':'*'}`;
- const totals={a:{plan:a.plan,actual:a.actual},b:{plan:b.plan,actual:b.actual}};
- $('#budget-year-comparison').innerHTML=`<div class="table-wrap"><table class="data by-table"><thead><tr><th rowspan="2">Категорія</th><th colspan="3" class="by-group">Факт</th><th colspan="3" class="by-group by-plan">План</th></tr><tr><th>${mark(a)}</th><th>${mark(b)}</th><th>Зміна</th><th class="by-plan">${first}</th><th>${second}</th><th>Зміна</th></tr></thead><tbody>${rows.map(r=>`<tr><th><button class="link" data-budget="${esc(r.category)}">${esc(categoryName(r.category))}</button></th>${cells(r.x,r.y,true)}${cells(r.x,r.y,false)}</tr>`).join('')}</tbody><tfoot><tr><th>Разом</th>${cells(totals.a,totals.b,true)}${cells(totals.a,totals.b,false)}</tr></tfoot></table></div><p class="by-note">${comparable?`Зміна — від ${first} до ${second}.`:'* Неповний рік: факт лише за покриті місяці, тому зміна факту не рахується.'}</p>`;
+ const notes=[comparable?`Зміна — від ${first} до ${second}.`:'* Неповний рік: факт лише за покриті місяці, тому зміну факту не показано.',a.complete||b.complete?'Червоним — факт понад план за повний рік.':''].filter(Boolean).join(' ');
+ $('#budget-year-comparison').innerHTML=`<div class="table-wrap"><table class="data by-table"><colgroup><col class="by-col-cat"><col span="${comparable?6:5}"></colgroup><thead><tr><th rowspan="2" class="by-cat">Категорія</th><th colspan="2" class="by-group">${mark(a)}</th><th colspan="2" class="by-group by-sep">${mark(b)}</th><th colspan="${comparable?2:1}" class="by-group by-sep">Зміна</th></tr><tr><th>Факт</th><th>План</th><th class="by-sep">Факт</th><th>План</th>${comparable?'<th class="by-sep">Факт</th><th>План</th>':'<th class="by-sep">План</th>'}</tr></thead><tbody>${rows.map(r=>row(`<button class="link" data-budget="${esc(r.category)}">${esc(categoryName(r.category))}</button>`,r.x,r.y)).join('')}</tbody><tfoot>${row('Разом',{plan:a.plan,actual:a.actual},{plan:b.plan,actual:b.actual})}</tfoot></table></div><p class="by-note">${notes}</p>`;
  amountPrivacy.refresh();
 }
 async function showHistory() {

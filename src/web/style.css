@@ -1344,3 +1344,44 @@ table.data.by-table td:last-child{padding-right:0}
 @media(max-width:600px){.split-breakdown>li{flex-wrap:wrap;gap:8px}.split-breakdown>li>div:last-child{text-align:left}.split-part{padding:12px}}
 
 .purchase-payments .trip-detail>.purchase-valuation{display:block}
+
+/* Budget by years v2: both blocks are aligned tables with one header each. */
+.by-years{margin-top:4px;border-top:0}
+table.data.by-years-table,table.data.by-table{width:100%;min-width:0!important;table-layout:fixed}
+.by-col-year{width:17%}
+.by-col-bar{width:27%}
+.by-col-cat{width:28%}
+table.data.by-years-table th,table.data.by-years-table td{padding:12px;text-align:right;vertical-align:middle;white-space:nowrap;font-variant-numeric:tabular-nums}
+table.data.by-years-table thead th{padding-top:6px;padding-bottom:8px;font-size:12px;font-weight:550;color:var(--muted)}
+table.data.by-years-table th:first-child,table.data.by-years-table thead th:nth-child(2),table.data.by-years-table td.by-yr-bar{text-align:left}
+table.data.by-years-table th:first-child{padding-left:0}
+table.data.by-years-table th:last-child,table.data.by-years-table td:last-child{padding-right:0}
+table.data.by-years-table td{font-size:14.5px;font-weight:600}
+table.data.by-years-table td.by-yr-bar{font-weight:400}
+table.data.by-years-table td.by-yr-bar .ov-budget-bar{min-width:0}
+table.data.by-years-table tbody th strong{display:block;font-size:16px;font-weight:600}
+table.data.by-years-table tbody th small{display:block;margin-top:1px;font-size:12px;font-weight:400;color:var(--muted)}
+table.data.by-years-table tr.is-partial th small{color:#8a5e12}
+table.data.by-table th,table.data.by-table td{padding:10px 12px;text-align:right}
+table.data.by-table thead th{font-size:12px;font-weight:550;color:var(--muted)}
+table.data.by-table thead tr+tr th:first-child{padding-left:12px;text-align:right}
+table.data.by-table thead tr+tr th:last-child,table.data.by-table td:last-child{padding-right:0}
+table.data.by-table th.by-group{padding-bottom:6px;text-align:center;font-size:13px;color:var(--ink);border-bottom:1px solid var(--line)}
+table.data.by-table th.by-cat{padding-left:0;text-align:left;white-space:normal}
+table.data.by-table td:nth-child(5),table.data.by-table .by-plan{border-left:0}
+table.data.by-table th.by-sep,table.data.by-table td.by-sep{border-left:1px solid var(--line)}
+table.data.by-table tbody th .link{font-size:14px;font-weight:500;color:var(--ink)}
+table.data.by-table tbody th .link:hover{color:var(--green)}
+table.data.by-table td.by-over{color:var(--red)}
+@media(max-width:700px){table.data.by-years-table{min-width:600px!important}table.data.by-table{min-width:640px!important}}
+table.data.by-years-table thead th,table.data.by-table thead th{white-space:normal}
+table.data.by-years-table tbody th strong{color:var(--ink)}
+table.data.by-table tfoot th{font-size:14px;color:var(--ink)}
+@media(max-width:700px){
+ table.data.by-years-table{min-width:660px!important}
+ table.data.by-table{min-width:680px!important}
+ .by-col-year{width:100px}
+ .by-col-bar{width:150px}
+ .by-col-cat{width:136px}
+ table.data.by-years-table th:first-child,table.data.by-table th.by-cat{position:sticky;left:0;z-index:1;background:var(--paper);box-shadow:8px 0 8px -8px rgba(24,57,66,.18)}
+}
