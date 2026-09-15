@@ -1,6 +1,12 @@
 # MoneyWave
 
-Private personal-finance workspace: a local report-style website over an encrypted, framework-independent processing core.
+Open-source, local-first personal-finance workspace: a report-style website over an encrypted, framework-independent processing core.
+
+[Support on Ko-fi](https://ko-fi.com/deus42) · [MIT license](LICENSE)
+
+MoneyWave is a personal project built around one owner's workflow. Development follows the maintainer's own needs; bank adapters, categories and some operator scripts remain tailored to that workflow. Automatic bank sync and general-purpose onboarding are deferred.
+
+The current runtime targets macOS with Keychain and Node 24. A fresh checkout can run the synthetic verification suite, but starting the website requires a locally initialized encrypted database and report. Personal statements, databases and reports are not included.
 
 ## Requirements
 
@@ -24,7 +30,7 @@ Unknown balances, unmatched movements and missing rates remain unknown. Report c
 Use Node 24 and the pinned pnpm version. `pnpm install` installs processing dependencies; `pnpm verify` runs lint, typecheck, synthetic tests and security checks. The website uses native Node HTTP and local static assets; no framework build or external service is needed.
 
 - `pnpm start`: open the local workspace at `http://127.0.0.1:43821/`. Requires the existing Keychain-backed database and an initialized report.
-- Stable mobile access on ExMachina: `https://exmachina.tail3a0b66.ts.net:9443/`, with Tailscale connected as the owner. See [private hosting](#private-hosting-on-exmachina).
+- Optional owner-only mobile access through Tailscale. See [private hosting](#private-hosting-on-exmachina); the maintainer's deployment is not a public demo.
 - `pnpm workspace:seed <ignored-local-report.json>`: validate and initialize the report projection; `--refresh` imports a later verified report while retaining compatible user edits. Source checks and a verified encrypted backup precede the write.
 - `pnpm keychain:build`: build the local Swift Keychain helper.
 - `pnpm verify:real-data`: opt-in local parser checks with safe result codes only.
@@ -75,3 +81,13 @@ The print view uses the same selected period and current edits; its PDF/print ac
 The crypto box includes eligible captured Pikespeak NEAR NAV and Etherscan Ethereum holdings in the selected capital view. Each wallet contributes once; staking and token breakdowns are explanatory. The shared period determines the capital cutoff. Historical charts include crypto only where explicit holding assumptions and dated price evidence support an estimate; later observations do not backfill earlier balances. Explorer observations show capture dates; reloading the site does not refresh market prices.
 
 Explicit local refresh: `node --import tsx scripts/import-crypto-observations.ts data/<captured-observations.json>` under Node 24. The input is an array of `{ observation, evidencePath }`; the schema is in `src/server/workspace/crypto.ts`. Each observation has the exact source URL/account, capture timestamp, USD NAV in cents, component breakdown and SHA-256 of its ignored local evidence file. The operator validates source identity and NAV reconciliation, verifies an encrypted backup, preserves prior observations and reads back the saved records. Wallet identifiers never belong in tracked files. Missing USD/EUR rates remain unvalued rather than defaulting to parity. No external calls, keys, signing or automatic synchronization occur on website reads.
+
+## Support
+
+If MoneyWave is useful to you, [buy Deus a coffee on Ko-fi](https://ko-fi.com/deus42). Donations are optional and support continued development.
+
+Bug reports and focused contributions are welcome. Use synthetic examples in issues and pull requests; keep real statements, account details and financial screenshots private. See the [product specification](docs/specification.md) for current scope and acceptance criteria.
+
+## License
+
+MoneyWave is available under the [MIT License](LICENSE). Third-party dependencies retain their respective licenses.
