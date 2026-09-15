@@ -6,6 +6,8 @@ Private personal-finance workspace: a local report-style website over an encrypt
 
 [High-level product requirements](docs/requirements.md): accounts and cash, money movement, meaningful categories, monthly reporting, net worth and the cost of moving money. The approved local workspace is defined by MW-030.
 
+[Full product specification](docs/specification.md): current behavior, financial rules, interfaces, acceptance criteria and deferred capabilities. All product changes follow the [spec-driven workflow](AGENTS.md#spec-driven-development).
+
 ## Retained
 
 - Original statements, encrypted SQLCipher database, financial backups and private audit reports under ignored `data/` paths.
@@ -54,6 +56,7 @@ Vault-Tec contains only project metadata. Do not upload financial material or ex
 
 ## Documentation
 
+- [Full product specification](docs/specification.md)
 - [Product scope](docs/product.md)
 - [Architecture](docs/architecture.md)
 - [Decisions](docs/decisions.md)
@@ -63,12 +66,12 @@ Vault-Tec contains only project metadata. Do not upload financial material or ex
 
 ## Workspace behavior
 
-Five chapters share a month/year selector: overview, budget, trips/events, purchases and transactions. Capital uses canonical dated positions; spending uses the explicitly imported corrected report. The UI shows the statement coverage and flags a changed ledger on startup. It never automatically imports bank data, refreshes FX, or sends financial data elsewhere.
+Six chapters share a period selector: overview, budget, trips/events, purchases, operations and cash. It supports full history, months, years, trailing 12 months and month ranges. Capital uses canonical dated positions; spending uses the explicitly imported corrected report. The UI shows the statement coverage and flags a changed ledger on startup. It never automatically imports bank data, refreshes FX, or sends financial data elsewhere.
 
 Category edits, effective-month budget limits, collections and revision history persist in SQLCipher. Existing payments can belong to a purchase and a trip without double counting. Explicit manual payments are separate user facts; linking a bank debit requires removing the manual amount first. Future events can have budgets, but future manual payments are rejected. Missing stock coverage does not become a complete Net Worth claim.
 
 The print view uses the same selected period and current edits; its PDF/print action uses the browser's print dialog. Source bank files remain immutable. Stocks are not yet connected.
 
-The crypto box includes captured Pikespeak NEAR NAV and Etherscan Ethereum holdings in current Net Worth. Each wallet contributes once; staking and token breakdowns are explanatory. Current capital and period-end capital have separate controls. The chart is explicitly bank/cash history, without retroactively invented crypto balances. Explorer observations show capture dates; reloading the site does not refresh market prices.
+The crypto box includes eligible captured Pikespeak NEAR NAV and Etherscan Ethereum holdings in the selected capital view. Each wallet contributes once; staking and token breakdowns are explanatory. The shared period determines the capital cutoff. Historical charts include crypto only where explicit holding assumptions and dated price evidence support an estimate; later observations do not backfill earlier balances. Explorer observations show capture dates; reloading the site does not refresh market prices.
 
 Explicit local refresh: `node --import tsx scripts/import-crypto-observations.ts data/<captured-observations.json>` under Node 24. The input is an array of `{ observation, evidencePath }`; the schema is in `src/server/workspace/crypto.ts`. Each observation has the exact source URL/account, capture timestamp, USD NAV in cents, component breakdown and SHA-256 of its ignored local evidence file. The operator validates source identity and NAV reconciliation, verifies an encrypted backup, preserves prior observations and reads back the saved records. Wallet identifiers never belong in tracked files. Missing USD/EUR rates remain unvalued rather than defaulting to parity. No external calls, keys, signing or automatic synchronization occur on website reads.

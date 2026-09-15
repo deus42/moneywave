@@ -6,9 +6,11 @@ Replace manual personal-finance spreadsheets with accurate, explainable records 
 
 [High-level requirements](requirements.md) consolidate the user's requested outcome independently of any previous website design.
 
+[The full product specification](specification.md) defines functional requirements, financial invariants, interfaces, acceptance criteria and deferred full-hub capabilities. Product changes follow its spec-driven workflow.
+
 ## Current delivery boundary
 
-The requester explicitly approved and requested the report-style local website (MW-030). Its five chapters cover overview, budget, trips/events, purchases and exact expense corrections. The processing core remains independent of the website.
+The requester explicitly approved and requested the report-style local website (MW-030). Its current six chapters cover overview, budget, trips/events, purchases, operations and cash. The processing core remains independent of the website.
 
 The existing local core retains file ingestion, immutable raw evidence, normalized ledger entries, duplicate detection, account ownership, matching, cash, categorization, FX valuations, costs and read-only reports. CLI imports and derivation operators remain available with their existing privacy and backup gates. The website uses a verified corrected report projection; it does not rewrite source transactions, rematch movements or run imports on page reads.
 

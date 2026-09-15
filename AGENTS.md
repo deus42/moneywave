@@ -20,6 +20,7 @@
 
 ## Commit Identity Hygiene
 
+- Use `Oleksii Gapchenko <deusson@gmail.com>` for author and committer; this is the verified `deus42` GitHub identity. Keep it configured in this repository and enable `user.useConfigOnly`; never accept a machine-derived email fallback. Check both identities before committing or rewriting history.
 - Keep commit history human-only. Do not put AI/agent/tool attribution in the author, committer, subject, body, or trailers, including Cursor, Codex, Claude, Fable, Anthropic, OpenAI, Copilot, Gemini, `AI-generated`, or equivalent wording.
 - Never add an AI `Co-Authored-By`, `Generated-By`, `Assisted-By`, or similar trailer. Preserve the configured human Git identity.
 - Before pushing, inspect the outgoing range with `git log '@{upstream}..HEAD' --format='%an%n%ae%n%cn%n%ce%n%B'`. Rewriting pushed history requires explicit requester authorization.
@@ -58,10 +59,19 @@
 - Before a same-task follow-up, re-open this file and the worklog, then refresh `Current Ask`, `Decisions`, `Working State`, `Verification`, and `Next`.
 - Never record account identifiers, balances, transactions, credentials, documents, or derived financial totals in task notes.
 
+## Spec-Driven Development
+
+- Always use a spec-driven approach for MoneyWave product changes. [The product specification](docs/specification.md) is the detailed behavior and acceptance contract; [requirements](docs/requirements.md), current [decisions](docs/decisions.md) and specialized policies retain their authority.
+- Before application code, identify the affected requirement/acceptance IDs and write or update the intended behavior, scope, inputs/outputs, financial invariants, failure cases and verification targets. For a small change, a scoped specification update is enough; for a larger increment, add a focused specification under `docs/specs/` and link it from the product specification.
+- Implement and validate against those criteria, then review the code and specification together. Keep implemented, partially verified and deferred scope explicit. Do not silently change an agreed requirement to fit existing code or a failing test.
+- Keep the specification and any relevant decision changes in the same change set as the implementation. Report affected requirements, verification and remaining gaps. Documentation-only and repository-maintenance tasks use proportionate written outcomes/checks without inventing product requirements.
+- A written specification does not expand authorization for financial mutations, migrations, external integrations, Git operations or deployment. Reuse existing authorization; ask only when a material ambiguity or a new protected boundary requires it.
+- Historical `docs/superpowers/` plans/specs are context, not current product authority unless an accepted requirement explicitly reinstates them.
+
 ## Read Order
 
 1. Read `AGENTS.md`.
-2. Read `docs/product.md`, `docs/architecture.md`, and `docs/decisions.md`.
+2. Read `docs/product.md`, `docs/requirements.md`, `docs/specification.md`, `docs/architecture.md`, and the relevant current decisions in `docs/decisions.md`.
 3. Read the Vault Source Project overlay and Project Workspace record.
 4. Read the active local worklog under `tasks/worklogs/` when one exists.
 5. Read `data/README.md` before accessing any file under `data/`.
