@@ -1,93 +1,183 @@
-# MoneyWave
+<p align="center">
+  <img src="src/web/moneywave-mark.png" width="128" alt="MoneyWave wave mark">
+</p>
 
-Open-source, local-first personal-finance workspace: a report-style website over an encrypted, framework-independent processing core.
+<h1 align="center">MoneyWave</h1>
 
-[Support on Ko-fi](https://ko-fi.com/deus42) · [MIT license](LICENSE)
+<p align="center">
+  <strong>Know where your money went.</strong><br>
+  Accounts, cash, spending and the cost of moving money.<br>
+  An open-source finance workspace that runs on your Mac.
+</p>
 
-MoneyWave is a personal project built around one owner's workflow. Development follows the maintainer's own needs; bank adapters, categories and some operator scripts remain tailored to that workflow. Automatic bank sync and general-purpose onboarding are deferred.
+<p align="center">
+  <a href="LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-087A65?style=flat-square"></a>
+  <img alt="Platform: macOS" src="https://img.shields.io/badge/platform-macOS-183942?style=flat-square">
+  <img alt="Node.js 24" src="https://img.shields.io/badge/Node.js-24-183942?style=flat-square">
+  <img alt="Storage: SQLCipher" src="https://img.shields.io/badge/storage-SQLCipher-183942?style=flat-square">
+</p>
 
-The current runtime targets macOS with Keychain and Node 24. A fresh checkout can run the synthetic verification suite, but starting the website requires a locally initialized encrypted database and report. Personal statements, databases and reports are not included.
+<p align="center">
+  <a href="#inside-moneywave">Explore the workspace</a> ·
+  <a href="#supported-sources">Supported sources</a> ·
+  <a href="#run-locally">Run locally</a> ·
+  <a href="#contribute">Contribute</a>
+</p>
 
-## Requirements
+<p align="center">
+  <a href="https://ko-fi.com/deus42"><img alt="Support MoneyWave on Ko-fi" src="https://img.shields.io/badge/Support_on_Ko--fi-FF5E5B?style=for-the-badge&amp;logo=ko-fi&amp;logoColor=white"></a>
+</p>
 
-[High-level product requirements](docs/requirements.md): accounts and cash, money movement, meaningful categories, monthly reporting, net worth and the cost of moving money. The approved local workspace is defined by MW-030.
+---
 
-[Full product specification](docs/specification.md): current behavior, financial rules, interfaces, acceptance criteria and deferred capabilities. All product changes follow the [spec-driven workflow](AGENTS.md#spec-driven-development).
+## Follow the money
 
-## Retained
+Money gets complicated when it crosses accounts, currencies and cash. A transfer appears twice. A withdrawal looks like spending. Currency conversion makes costs harder to see. A spreadsheet slowly becomes a second job.
 
-- Original statements, encrypted SQLCipher database, financial backups and private audit reports under ignored `data/` paths.
-- PrivatBank FOP/personal, monobank, Erste, Wise and Revolut file adapters; manual monthly position imports.
-- Immutable evidence, deduplication, reconciliation, movement matching and classification.
-- Evidence-backed cash, deterministic fee/FX calculations and daily UAH/EUR/USD valuations.
-- Category rules, authorized sanitized Codex categorization, and read-only account/transaction/report projections.
-- Keychain/recovery, verified backups and synthetic processing tests.
+MoneyWave brings supported bank statements into a shared ledger, connects movements when the evidence supports them, and builds a monthly picture of your finances. You can trace the records behind a total and keep corrections without rewriting the originals.
 
-Unknown balances, unmatched movements and missing rates remain unknown. Report corrections and manual workspace edits remain separate from original bank records.
+A typical flow it helps explain:
 
-## Local commands
+```mermaid
+flowchart LR
+    A[Income] --> B[Own accounts]
+    B --> C[FX and transfers]
+    C --> D[Other own accounts]
+    B --> E[Spending]
+    D --> E
+    D --> F[Cash]
+    F --> E
+    classDef account fill:#e6f5ef,stroke:#087a65,color:#183942
+    classDef movement fill:#edf2f5,stroke:#52717b,color:#183942
+    class A,B,D,F account
+    class C,E movement
+```
 
-Use Node 24 and the pinned pnpm version. `pnpm install` installs processing dependencies; `pnpm verify` runs lint, typecheck, synthetic tests and security checks. The website uses native Node HTTP and local static assets; no framework build or external service is needed.
+> [!NOTE]
+> **Personal project, shared openly.** MoneyWave grew out of one person's finances. The current release is for developers comfortable with macOS and local setup. Some categories, source formats and operator scripts remain specific to that workflow. General-purpose onboarding and automatic bank sync are still deferred.
 
-- `pnpm start`: open the local workspace at `http://127.0.0.1:43821/`. Requires the existing Keychain-backed database and an initialized report.
-- Optional owner-only mobile access through Tailscale. See [private hosting](#private-hosting-on-exmachina); the maintainer's deployment is not a public demo.
-- `pnpm workspace:seed <ignored-local-report.json>`: validate and initialize the report projection; `--refresh` imports a later verified report while retaining compatible user edits. Source checks and a verified encrypted backup precede the write.
-- `pnpm keychain:build`: build the local Swift Keychain helper.
-- `pnpm verify:real-data`: opt-in local parser checks with safe result codes only.
-- `pnpm import:manual-positions <local-xlsx>`: preview manual monthly positions; `--commit` enables the separately authorized import.
-- `node --import tsx scripts/import-foreign-statements.ts`: preview the supplied foreign statements; committing requires explicit `--commit --confirm-same-manual-accounts` authorization.
-- `pnpm analyze:finance` / `pnpm analyze:privatebank`: **mutating** import/derivation operators with verified backups. These can invoke accepted rate/categorization flows; they are not read-only verification commands.
-- `pnpm verify:codex-subscription`: opt-in external check using synthetic text and existing Codex sign-in; consumes subscription usage.
+## Inside MoneyWave
 
-For private source paths, invoke the corresponding script directly to avoid package-manager argument echoes. Database and recovery keys never belong in arguments or environment variables.
+Six chapters share one reporting period, so you can move from the big picture to an individual operation without losing your place.
 
-## Private hosting on ExMachina
+| Chapter | What you can see and do |
+| --- | --- |
+| **Overview** | Inspect known capital, income, spending, taxes, bank costs and savings differences. Open the records behind the numbers. |
+| **Budget** | Compare spending with category limits, set bounded budget periods and compare years. |
+| **Trips & events** | Group payments around a trip or event, track its budget and retain historical context. |
+| **Purchases** | Connect payments, refunds and item details to large purchases. Archive and restore them. |
+| **Operations** | Inspect expenses, correct categories and descriptions, split supported payments and undo edits. |
+| **Cash** | Record daily cash expenses and inspect balances and trends in EUR, USD and UAH. |
 
-MW-032 authorizes owner-only Tailscale access. The stable website runs in the local `moneywave-stage` container, published only on `127.0.0.1:43822`; Tailscale Serve maps private HTTPS port 9443 to it. Launchd `local.moneywave.stage` supervises it and provides access to the shared database through an unlogged local pipe; the database key stays in macOS Keychain and the host process. Its `caffeinate -s` wrapper prevents AC sleep. The Mac must remain online and logged in with its Keychain available.
+The workspace also includes amount masking, coverage indicators and a browser print view that follows the selected period. Captured crypto positions contribute where dated evidence supports them; incomplete asset coverage stays visible.
 
-Use `pnpm stage:deploy` to verify and install an immutable local image, `pnpm stage:status` to inspect it, and `pnpm stage:rollback` for the previous image. The container and source preview share the existing encrypted database; never copy over, reseed or migrate it for a code release. The owner's login and deployment configuration remain ignored local files. See [the staging runbook](docs/staging.md) for backup, network, restart and acceptance details.
+### The accounting rules matter
 
-- Check: `pnpm stage:status` and `tailscale serve status`.
-- Restart: `docker --context colima restart moneywave-stage`, wait for the supervisor to unlock it, then reload the browser to renew its session.
-- Stop mobile exposure: `tailscale serve --https=9443 off`.
-- Stop the app: `launchctl bootout gui/$(id -u)/local.moneywave.stage`, then `docker --context colima stop moneywave-stage`.
+- **Count each movement once.** Transfers between your accounts, owner draws and cash withdrawals remain movements rather than becoming additional income or spending.
+- **Keep the evidence.** Original files stay immutable. Normalized records, links and reversible corrections retain their provenance.
+- **Show the gaps.** Missing balances, rates and counterparties remain unknown. An unexplained difference never quietly becomes a fee.
+- **Separate costs.** Statement fees, confirmed costs and estimated FX spread remain distinguishable.
+- **Keep your corrections.** Compatible category edits, budgets and payment links survive an explicit report refresh; conflicts stop the affected operation.
 
-Do not reset the shared Tailscale Serve configuration: other apps use its other ports. The financial store remains shared with the local workspace and protected by its existing revision checks.
+## Supported sources
 
-## Privacy
+These are adapters for specific export formats. Bank names below do not imply a live connection or support for every export variant.
 
-Financial data stays local and ignored by Git. Preserve source bytes and keep reports separate from originals. SQLCipher/Keychain and backup contracts remain unchanged. Direct application network access is deny-by-default; only previously reviewed bank/public-rate endpoints are allowed. The separately authorized Codex path receives bounded sanitized merchant labels and category codes, never raw records, accounts, dates, amounts, balances or totals. No local model is required.
+| Source | Current import scope |
+| --- | --- |
+| **PrivatBank** | Personal statement and FOP payment-journal formats. |
+| **monobank** | Supported personal-account statement exports. |
+| **Erste / George** | Supported EUR CSV statements. |
+| **Wise** | Supported EUR XLSX statements, with explicit account binding. |
+| **Revolut** | Supported EUR current-account CSV statements, with explicit account binding; nonzero-fee rows are not yet supported. |
+| **Manual positions** | Monthly observations from a specific Savings XLSX layout, with cell-level provenance. |
+| **Crypto** | Explicitly captured NEAR/Ethereum observations and supported historical evidence; no automatic wallet sync. |
 
-Vault-Tec contains only project metadata. Do not upload financial material or extend external access without specific authorization.
+The financial core retains native amounts and materializes UAH, EUR and USD valuations from cached official ECB/NBU rates. The current report website displays EUR.
 
-## Documentation
+## Run locally
 
-- [Full product specification](docs/specification.md)
-- [Product scope](docs/product.md)
-- [Architecture](docs/architecture.md)
-- [Decisions](docs/decisions.md)
-- [Data handling](data/README.md)
-- [Agent instructions](AGENTS.md)
+**Prerequisites:** macOS, Node.js **24**, pnpm **11.16.0**, and Xcode Command Line Tools for the native dependencies and Swift Keychain helper.
 
+```sh
+git clone https://github.com/deus42/moneywave.git
+cd moneywave
 
-## Workspace behavior
+# Use Node 24; .nvmrc is included for nvm users.
+pnpm install --frozen-lockfile
+pnpm verify
+```
 
-Six chapters share a period selector: overview, budget, trips/events, purchases, operations and cash. It supports full history, months, years, trailing 12 months and month ranges. Capital uses canonical dated positions; spending uses the explicitly imported corrected report. The UI shows the statement coverage and flags a changed ledger on startup. It never automatically imports bank data, refreshes FX, or sends financial data elsewhere.
+`pnpm verify` runs lint, type checking, synthetic tests and repository security checks.
 
-Category edits, effective-month budget limits, collections and revision history persist in SQLCipher. Existing payments can belong to a purchase and a trip without double counting. Explicit manual payments are separate user facts; linking a bank debit requires removing the manual amount first. Future events can have budgets, but future manual payments are rejected. Missing stock coverage does not become a complete Net Worth claim.
+> [!IMPORTANT]
+> **The website requires an initialized workspace.** A fresh checkout does not include a database, recovery key, bank statements or report. First-run setup is not packaged into a general-purpose wizard. The existing initialization and recovery services are described in the [architecture](docs/architecture.md); [data handling](data/README.md) documents the local storage boundary.
 
-The print view uses the same selected period and current edits; its PDF/print action uses the browser's print dialog. Source bank files remain immutable. Stocks are not yet connected.
+With your Keychain-backed database and report already initialized:
 
-The crypto box includes eligible captured Pikespeak NEAR NAV and Etherscan Ethereum holdings in the selected capital view. Each wallet contributes once; staking and token breakdowns are explanatory. The shared period determines the capital cutoff. Historical charts include crypto only where explicit holding assumptions and dated price evidence support an estimate; later observations do not backfill earlier balances. Explorer observations show capture dates; reloading the site does not refresh market prices.
+```sh
+pnpm start
+```
 
-Explicit local refresh: `node --import tsx scripts/import-crypto-observations.ts data/<captured-observations.json>` under Node 24. The input is an array of `{ observation, evidencePath }`; the schema is in `src/server/workspace/crypto.ts`. Each observation has the exact source URL/account, capture timestamp, USD NAV in cents, component breakdown and SHA-256 of its ignored local evidence file. The operator validates source identity and NAV reconciliation, verifies an encrypted backup, preserves prior observations and reads back the saved records. Wallet identifiers never belong in tracked files. Missing USD/EUR rates remain unvalued rather than defaulting to parity. No external calls, keys, signing or automatic synchronization occur on website reads.
+Open **[localhost:43821](http://127.0.0.1:43821/)**. Page reads use saved data; import and report refresh are explicit operations.
 
-## Support
+<details>
+<summary><strong>Operator commands and private mobile access</strong></summary>
 
-If MoneyWave is useful to you, [buy Deus a coffee on Ko-fi](https://ko-fi.com/deus42). Donations are optional and support continued development.
+| Command | Purpose |
+| --- | --- |
+| `pnpm keychain:build` | Build the local Swift Keychain helper. |
+| `pnpm workspace:seed <local-report.json>` | Validate and initialize a report; `--refresh` updates it while retaining compatible edits. Requires the existing encrypted store. |
+| `pnpm import:manual-positions <local.xlsx>` | Preview a supported manual-position workbook; `--commit` enables the protected import. |
+| `pnpm verify:real-data` | Run opt-in local checks with safe result codes. |
+| `pnpm analyze:finance` / `pnpm analyze:privatebank` | Run **mutating** import and derivation operators with backup checks. These may invoke configured rate and categorization flows. |
+| `pnpm stage:deploy` / `pnpm stage:status` / `pnpm stage:rollback` | Manage the maintainer's private container deployment. |
 
-Bug reports and focused contributions are welcome. Use synthetic examples in issues and pull requests; keep real statements, account details and financial screenshots private. See the [product specification](docs/specification.md) for current scope and acceptance criteria.
+For private file paths, invoke the corresponding script directly to avoid package-manager argument echoes. Keep database and recovery keys out of arguments and environment variables.
 
-## License
+The optional Tailscale deployment provides owner-only mobile access through an online Mac. Its database remains on macOS, with the key in Keychain. This deployment is specific to the maintainer's environment; see the [staging runbook](docs/staging.md) before adapting it. Preserve existing Tailscale mappings and verify recoverable backups before bulk writes.
 
-MoneyWave is available under the [MIT License](LICENSE). Third-party dependencies retain their respective licenses.
+</details>
+
+## Built for private records
+
+- **Encrypted storage:** SQLCipher, macOS Keychain and recovery support.
+- **Local workspace:** loopback HTTP, local application assets, session and CSRF protection.
+- **Controlled network access:** application requests are restricted to reviewed destinations. Opening a report does not contact a bank or refresh market prices.
+- **Private inputs:** statements, databases, reports and backups stay in ignored local storage.
+
+Optional expense categorization uses an existing Codex/ChatGPT sign-in and sends only a bounded, sanitized merchant label plus allowed category codes. It excludes raw statements, amounts, dates, account identifiers and balances. AI does not match transfers, choose FX rates or calculate costs. Details: [privacy and architecture](docs/architecture.md).
+
+The processing core is independent of the website: **TypeScript · Node 24 · SQLCipher · native HTTP · HTML/CSS/JavaScript**. Money uses exact minor units and deterministic decimal calculations.
+
+## Contribute
+
+Focused fixes, synthetic reproductions and improvements to supported adapters are welcome. For a new bank, finance domain or external integration, open an issue to agree on scope first.
+
+1. Read the [product specification](docs/specification.md) and [contributor instructions](AGENTS.md).
+2. Describe the intended behavior and acceptance criteria before changing application code.
+3. Add appropriate synthetic coverage, run `pnpm verify`, and keep the change focused.
+
+**Keep real financial records out of issues, pull requests and screenshots.** Use invented examples to reproduce a problem.
+
+| Read next | What's there |
+| --- | --- |
+| [Product specification](docs/specification.md) | Current behavior, acceptance criteria and deferred capabilities. |
+| [Requirements](docs/requirements.md) | The financial questions MoneyWave is intended to answer. |
+| [Architecture](docs/architecture.md) | Processing, storage, privacy and recovery boundaries. |
+| [Decisions](docs/decisions.md) | The reasoning behind the current system. |
+| [Category policy](docs/category-rules.md) | Classification rules and preservation of confirmed meaning. |
+
+## Buy the next coffee
+
+MoneyWave is built and maintained by [Oleksii Gapchenko](https://github.com/deus42). If it helps you understand your finances, or gives you useful code to build on, you can support its continued development.
+
+<p align="center">
+  <a href="https://ko-fi.com/deus42"><img alt="Buy Deus a coffee on Ko-fi" src="https://img.shields.io/badge/Buy_Deus_a_coffee-FF5E5B?style=for-the-badge&amp;logo=ko-fi&amp;logoColor=white"></a>
+</p>
+
+Support is voluntary. Development follows the maintainer's own needs and available time.
+
+---
+
+[MIT License](LICENSE) · Copyright © 2026 Oleksii Gapchenko. Third-party dependencies retain their respective licenses.
